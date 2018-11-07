@@ -7,7 +7,7 @@ dr_t dir_readfile(const char *path, dr_t root);
 void dir_writefile(const char *path, dr_t d, dr_t root);
 void dir_rename(const char *from, const char *to, dr_t root);
 void dir_remove(const char *path, dr_t root);
-void dir_movdir(const char *from, const char *to);
+void dir_movdir(dr_t from, dr_t to);
 
 #endif
 

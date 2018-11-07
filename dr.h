@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define str(dr)	((char *)(dr)->buf)
+
 typedef struct dr_{	//data reference
 	int ref;
 	int size;

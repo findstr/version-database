@@ -48,11 +48,11 @@ patch(struct patch_args *args)
 {
 	dr_t patch;
 	dr_t outdir, outtemp = NULL;
-	int ret, size, dfn = 0;
+	int size, dfn = 0;
 	const uint8_t *p, *e;
 	outdir = args->output;
 	checkout(args->hash, outdir);
-	patch = dir_readfile(args->patch->buf, NULL);
+	patch = dir_readfile(str(args->patch), NULL);
 	if (patch == NULL) {
 		fprintf(stderr, "patch file '%s' %s\n",
 			args->patch->buf, strerror(errno));
@@ -82,11 +82,11 @@ patch(struct patch_args *args)
 			patch = ctrl.u.dfx.patch;
 			diff:
 			++dfn;
-			oldfile = dir_readfile(namea->buf, outdir);
+			oldfile = dir_readfile(str(namea), outdir);
 			newfile = patch_content(oldfile, patch);
 			hash = db_hash(newfile);
 			assert(dr_cmp(hash, ctrl.u.dff.hash) == 0);
-			dir_writefile(ctrl.u.dff.name->buf, newfile, outtemp);
+			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
 			break;
 		case CTRL_MOV:
 		case CTRL_NEW:
@@ -103,24 +103,24 @@ patch(struct patch_args *args)
 	e = p + patch->size;
 	while (p < e) {
 		struct CTRL ctrl;
-		dr_t namea, patch, oldfile = NULL;
+		dr_t namea = NULL, oldfile = NULL;
 		dr_t hash = NULL, newfile = NULL;
 		p = ctrl_read(p, &ctrl);
 		switch (ctrl.type) {
 		case CTRL_NEW:
 			hash = db_hash(ctrl.u.new.data);
 			assert(dr_cmp(hash, ctrl.u.new.hash) == 0);
-			dir_writefile(ctrl.u.new.name->buf,
+			dir_writefile(str(ctrl.u.new.name),
 				ctrl.u.new.data, outdir);
 			break;
 		case CTRL_MOV:
-			oldfile = dir_readfile(namea->buf, outdir);
+			oldfile = dir_readfile(str(namea), outdir);
 			hash = db_hash(oldfile);
 			assert(dr_cmp(hash, ctrl.u.mov.hash) == 0);
-			dir_rename(namea->buf, ctrl.u.mov.name->buf, outdir);
+			dir_rename(str(namea), str(ctrl.u.mov.name), outdir);
 			break;
 		case CTRL_DEL:
-			dir_remove(ctrl.u.del.name->buf, outdir);
+			dir_remove(str(ctrl.u.del.name), outdir);
 			break;
 		}
 		dr_unref(hash);
@@ -130,7 +130,7 @@ patch(struct patch_args *args)
 	}
 	printf("apply DFF/DFX result\n");
 	if (dfn > 0)
-		dir_movdir(outtemp->buf, outdir->buf);
+		dir_movdir(outtemp, outdir);
 	dr_unref(patch);
 	dr_unref(outtemp);
 	return ;

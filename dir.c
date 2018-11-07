@@ -184,23 +184,23 @@ dir_remove(const char *path, dr_t root)
 }
 
 void
-dir_movdir(const char *from, const char *to)
+dir_movdir(dr_t from, dr_t to)
 {
 	int i, n, ret;
 	int flen, tlen;
 	dr_t *list;
 	char buf[PATH_MAX];
-	n = dir_scan(from, &list, 0);
-	flen = strlen(from);
-	tlen = strlen(to);
-	memcpy(buf, to, tlen);
+	n = dir_scan(str(from), &list, 0);
+	flen = from->size;
+	tlen = to->size;
+	memcpy(buf, to->buf, tlen);
 	for (i = 0; i < n; i++) {
 		dr_t d = list[i];
 		memcpy(&buf[tlen], &d->buf[flen], d->size - flen);
 		buf[d->size - flen + tlen] = 0;
 		checkdir(buf);
 		ret = remove(buf);
-		assert(ret == 0 || ret == -1 && errno == ENOENT);
+		assert(ret == 0 || (ret == -1 && errno == ENOENT));
 		ret = rename((char *)d->buf, buf);
 		assert(ret == 0);
 		dr_unref(d);

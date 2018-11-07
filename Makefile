@@ -7,5 +7,5 @@ SRC:=main.c release.c history.c diff.c patch.c list.c checkout.c\
 all:vdb
 
 vdb:$(SRC)
-	gcc -g3 -o $@ $^
+	gcc -g3 -Wall -Werror -o $@ $^
 

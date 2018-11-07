@@ -8,12 +8,6 @@
 #include "object.h"
 #include "release.h"
 
-static int
-namecmp(dr_t a, dr_t b)
-{
-
-}
-
 void
 release(struct release_args *args)
 {
@@ -21,7 +15,7 @@ release(struct release_args *args)
 	int i, n, keep;
 	struct release prevrel;
 	struct tree prevtree, tree;
-	n = dir_scan(args->fromdir->buf, &list, 1);
+	n = dir_scan(str(args->fromdir), &list, 1);
 	head = db_readhead(&prevrel, &prevtree);
 	tree_sort(&prevtree, ref_hashcmp);
 	tree.refn = n;
@@ -29,16 +23,15 @@ release(struct release_args *args)
 	memset(tree.refs, 0, sizeof(struct ref) * n);
 	keep = 0;
 	for (i = 0; i < n; i++) {
-		int exist;
 		dr_t d, name;
 		struct ref *r, *f;
 		r = &tree.refs[i];
 		r->name = name = list[i];
-		d = dir_readfile(name->buf, args->fromdir);
+		d = dir_readfile(str(name), args->fromdir);
 		r->hash = db_write(name, d);
 		dr_unref(d);
 		f = tree_search(&prevtree, r, ref_hashcmp);
-		if (f && (strcmp(f->name->buf, name->buf) == 0)) {
+		if (f && (strcmp(str(f->name), str(name)) == 0)) {
 			dr_unref(f->name);
 			f->name = NULL;
 			keep += 1;
