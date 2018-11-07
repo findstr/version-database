@@ -2,9 +2,9 @@
 #include "dr.h"
 #include "ctrl.h"
 
-#define HASH_LEN		uint16
+#define HASH_LEN		uint8
 #define NAME_LEN		uint16
-#define HASH_LEN_SIZE		(sizeof(uint16_t))
+#define HASH_LEN_SIZE		(sizeof(uint8_t))
 #define NAME_LEN_SIZE		(sizeof(uint16_t))
 
 void
