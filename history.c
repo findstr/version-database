@@ -19,8 +19,9 @@ history()
 			t = localtime(&rel.time);
 			strftime(datetime, sizeof(datetime),
 				"%a %b %d %H:%M:%S %Z", t);
-			printf("Version:%s\n", rel.ver->buf);
 			printf("release:%s\n", h->buf);
+			printf("finger:%s\n", rel.finger->buf);
+			printf("Version:%s\n", rel.ver->buf);
 			printf("Date:%s\n", datetime);
 			printf("\n\t%s\n\n", rel.note->buf);
 			if (rel.prev->size <= 0)

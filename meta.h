@@ -18,19 +18,16 @@
 
 
 struct NEW {
-	dr_t hash;
 	dr_t name;
 	dr_t data;
 };
 
 struct DFF {
-	dr_t hash;
 	dr_t name;
 	dr_t patch;
 };
 
 struct DFX {
-	dr_t hash;
 	dr_t name;
 	dr_t namea;
 	dr_t patch;
@@ -41,7 +38,6 @@ struct DEL {
 };
 
 struct MOV {
-	dr_t hash;
 	dr_t name;
 	dr_t namea;
 };

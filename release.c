@@ -8,6 +8,34 @@
 #include "object.h"
 #include "release.h"
 
+static dr_t
+fingerprint(struct tree *tree)
+{
+	int i, n;
+	drb_t drb;
+	dr_t finger;
+	struct ref *r;
+	char buf[2048];
+	drb_init(&drb, 2048);
+	for (i = 0; i < tree->refn; i++) {
+		uint8_t *p;
+		r = &tree->refs[i];
+		n = snprintf(buf, sizeof(buf), "%s\t%s\n",
+			r->hash->buf, r->name->buf);
+		assert(n < sizeof(buf));
+		p = drb_check(&drb, n);
+		memcpy(p, buf, n); p += n;
+		drb_end(&drb, p);
+	}
+	finger = drb_dump(&drb);
+	r = &tree->refs[i];
+	r->name = dr_newstr(FINGER);
+	r->hash = db_write(r->name, finger);
+	++tree->refn;
+	dr_unref(finger);
+	return dr_ref(r->hash);
+}
+
 void
 release(struct release_args *args)
 {
@@ -19,8 +47,8 @@ release(struct release_args *args)
 	head = db_readhead(&prevrel, &prevtree);
 	tree_sort(&prevtree, ref_hashcmp);
 	tree.refn = n;
-	tree.refs = malloc(sizeof(struct ref) * n);
-	memset(tree.refs, 0, sizeof(struct ref) * n);
+	tree.refs = malloc(sizeof(struct ref) * (n+1));
+	memset(tree.refs, 0, sizeof(struct ref) * (n+1));
 	keep = 0;
 	for (i = 0; i < n; i++) {
 		dr_t d, name;
@@ -50,12 +78,13 @@ release(struct release_args *args)
 	}
 	if (keep != n) {
 		struct release rel;
-		dr_t treeobj;
+		dr_t treeobj;//, finger;
 		dr_t relhash, treehash;
 		rel.time = time(NULL);
 		rel.prev = dr_ref(head);
 		rel.ver = dr_ref(args->version);
 		rel.note = dr_ref(args->describe);
+		rel.finger = fingerprint(&tree);
 		treeobj = tree_marshal(&tree);
 		treehash = db_write(rel.ver, treeobj);
 		rel.tree = dr_ref(treehash);

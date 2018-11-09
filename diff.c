@@ -89,7 +89,6 @@ diff_content(dr_t old, dr_t new)
 	SA = dc3(old->buf, old->size);
 	drb_init(&drb, 1024);
 	patch_total(&drb, new->size);
-	printf("new size:%d\n", nsize);
 	while (ni < nsize) {
 		struct COPY copy;
 		sim = search(old, SA, &np[ni], nsize - ni, &oi);
@@ -117,7 +116,7 @@ diff_content(dr_t old, dr_t new)
 			copy.pos = oi;
 			copy.size = sim;
 			patch_copy(&drb, &copy);
-			printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
+			//printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
 			ni += sim;
 		}
 	}
@@ -130,14 +129,20 @@ void
 diff(struct diff_args *args)
 {
 	int i, j;
-	dr_t data;
 	drb_t file;
+	dr_t data;
+	dr_t finger, patchhash;
+	char buff[2048];
+	struct ref *r, r_finger;
 	struct release ra, rb;
 	struct tree ta, tb;
+	r_finger.name = dr_newstr(FINGER);
+	r_finger.data = NULL;
 	db_readrel(&ra, args->a);
 	db_readrel(&rb, args->b);
 	db_readtree(&ta, ra.tree);
 	db_readtree(&tb, rb.tree);
+	finger = dr_ref(rb.finger);
 	printf("tree a:%s\n", ra.tree->buf);
 	printf("tree b:%s\n", rb.tree->buf);
 	release_destroy(&ra);
@@ -155,7 +160,6 @@ diff(struct diff_args *args)
 		if ((x = tree_search(&ta, b, ref_hashcmp)) != NULL) {
 			if (dr_cmp(b->name, x->name) != 0) {
 				struct MOV M;
-				M.hash = b->hash;
 				M.namea = x->name;
 				M.name = b->name;
 				ctrl_mov(&file, &M);
@@ -189,21 +193,18 @@ diff(struct diff_args *args)
 		if (patch == NULL || b->data->size <= patch->size) {//no fix patch
 			struct NEW N;
 			N.name = b->name;
-			N.hash = b->hash;
 			N.data = b->data;
 			ctrl_new(&file, &N);
 		} else if (acost == 0) {	//great! same name
 			struct DFF D;
 			assert(dr_cmp(b->name, a->name) == 0);
 			D.name = b->name;
-			D.hash = b->hash;
 			D.patch = patch;
 			ctrl_dff(&file, &D);
 		} else {
 			struct DFX D;
 			D.namea = a->name;
 			D.name = b->name;
-			D.hash = b->hash;
 			D.patch = patch;
 			ctrl_dfx(&file, &D);
 		}
@@ -212,7 +213,6 @@ diff(struct diff_args *args)
 	printf("\ndetect remove\n");
 	tree_sort(&tb, ref_namecmp);
 	for (i = 0; i < ta.refn; i++) {
-		struct ref *r;
 		r = &ta.refs[i];
 		if (tree_search(&tb, r, ref_namecmp) == NULL) { //clear
 			struct DEL d;
@@ -220,10 +220,21 @@ diff(struct diff_args *args)
 			ctrl_del(&file, &d);
 		}
 	}
+	r = tree_search(&tb, &r_finger, ref_namecmp);
 	printf("\n");
 	data = drb_dump(&file);
-	dir_writefile((char *)args->p->buf, data, NULL);
+	dir_writefile("patch", data, args->p);
+	patchhash = db_hash(data);
 	dr_unref(data);
+	snprintf(buff, sizeof(buff),
+		"{\"finger\":\"%s\", \"patch\":\"%s\"}",
+		r->hash->buf, patchhash->buf);
+	data = dr_newstr(buff);
+	dir_writefile("version.json", data, args->p);
+	dr_unref(data);
+	dr_unref(finger);
+	dr_unref(patchhash);
+	dr_unref(r_finger.name);
 	tree_destroy(&ta);
 	tree_destroy(&tb);
 	return ;

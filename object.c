@@ -128,15 +128,16 @@ release_marshal(struct release *r)
 	int sz;
 	uint8_t *ptr;
 	sz =	4 +				//type
-		sizeof(time_t) +		//time
+		sizeof(uint64_t) +		//time
 		4 + r->prev->size +		//prev
 		4 + r->tree->size +		//tree
 		4 + r->ver->size +		//ver
-		4 + r->note->size;		//note
+		4 + r->note->size +		//note
+		4 + r->finger->size;		//finger
 	d = dr_new(sz, NULL);
 	ptr = d->buf;
 	*(uint32_t *)ptr = RELEASE;			ptr += 4;
-	*(time_t *)ptr = r->time;			ptr += sizeof(time_t);
+	*(uint64_t *)ptr = r->time;			ptr += sizeof(uint64_t);
 	*(uint32_t *)ptr = r->prev->size;		ptr += 4;
 	memcpy(ptr, r->prev->buf, r->prev->size);	ptr += r->prev->size;
 	*(uint32_t *)ptr = r->tree->size;		ptr += 4;
@@ -144,7 +145,9 @@ release_marshal(struct release *r)
 	*(uint32_t *)ptr = r->ver->size;		ptr += 4;
 	memcpy(ptr, r->ver->buf, r->ver->size);		ptr += r->ver->size;
 	*(uint32_t *)ptr = r->note->size;		ptr += 4;
-	memcpy(ptr, r->note->buf, r->note->size);
+	memcpy(ptr, r->note->buf, r->note->size);	ptr += r->note->size;
+	*(uint32_t *)ptr = r->finger->size;		ptr += 4;
+	memcpy(ptr, r->finger->buf, r->finger->size);
 	return d;
 }
 
@@ -155,7 +158,7 @@ release_unmarshal(struct release *r, dr_t d)
 	uint8_t *ptr = d->buf;
 	type = *(uint32_t *)ptr;			ptr += 4;
 	assert(type == RELEASE);
-	r->time = *(time_t *)ptr;			ptr += sizeof(time_t);
+	r->time = *(uint64_t *)ptr;			ptr += sizeof(uint64_t);
 	size = *(uint32_t *)ptr;			ptr += 4;
 	r->prev = dr_new(size, ptr);			ptr += size;
 	size = *(uint32_t *)ptr;			ptr += 4;
@@ -163,7 +166,9 @@ release_unmarshal(struct release *r, dr_t d)
 	size = *(uint32_t *)ptr;			ptr += 4;
 	r->ver = dr_new(size, ptr);			ptr += size;
 	size = *(uint32_t *)ptr;			ptr += 4;
-	r->note = dr_new(size, ptr);
+	r->note = dr_new(size, ptr);			ptr += size;
+	size = *(uint32_t *)ptr;			ptr += 4;
+	r->finger = dr_new(size, ptr);
 	return ;
 }
 

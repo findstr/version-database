@@ -72,8 +72,8 @@ patch(struct patch_args *args)
 	e = p + patch->size;
 	while (p < e) {
 		struct CTRL ctrl;
-		dr_t namea, patchd, oldfile = NULL;
-		dr_t hash = NULL, newfile = NULL;
+		dr_t namea, patchd;
+		dr_t newfile = NULL, oldfile = NULL;
 		printf("offset:%ld\n", p - patch->buf);
 		p = ctrl_read(p, &ctrl);
 		switch (ctrl.act) {
@@ -89,8 +89,6 @@ patch(struct patch_args *args)
 			oldfile = dir_readfile(str(namea), outdir);
 			newfile = patch_content(oldfile, patchd);
 			printf("ref:%d\n", newfile->ref);
-			hash = db_hash(newfile);
-			assert(dr_cmp(hash, ctrl.u.dff.hash) == 0);
 			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
 			break;
 		case CTRL_MOV:
@@ -98,7 +96,6 @@ patch(struct patch_args *args)
 		case CTRL_DEL:
 			break;
 		}
-		dr_unref(hash);
 		dr_unref(oldfile);
 		dr_unref(newfile);
 		ctrl_destroy(&ctrl);
@@ -108,27 +105,22 @@ patch(struct patch_args *args)
 	e = p + patch->size;
 	while (p < e) {
 		struct CTRL ctrl;
-		dr_t namea = NULL, oldfile = NULL;
-		dr_t hash = NULL, newfile = NULL;
+		dr_t namea = NULL;
+		dr_t newfile = NULL, oldfile = NULL;
 		p = ctrl_read(p, &ctrl);
 		switch (ctrl.act) {
 		case CTRL_NEW:
-			hash = db_hash(ctrl.u.new.data);
-			assert(dr_cmp(hash, ctrl.u.new.hash) == 0);
 			dir_writefile(str(ctrl.u.new.name),
 				ctrl.u.new.data, outdir);
 			break;
 		case CTRL_MOV:
 			oldfile = dir_readfile(str(namea), outdir);
-			hash = db_hash(oldfile);
-			assert(dr_cmp(hash, ctrl.u.mov.hash) == 0);
 			dir_rename(str(namea), str(ctrl.u.mov.name), outdir);
 			break;
 		case CTRL_DEL:
 			dir_remove(str(ctrl.u.del.name), outdir);
 			break;
 		}
-		dr_unref(hash);
 		dr_unref(oldfile);
 		dr_unref(newfile);
 		ctrl_destroy(&ctrl);

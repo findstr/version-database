@@ -7,6 +7,7 @@
 #define BLOB	MC('B', 'L', 'O', 'B')
 #define TREE	MC('T', 'R', 'E', 'E')
 #define RELEASE	MC('R', 'E', 'L', ' ')
+#define FINGER	"_fingerprint"
 
 struct blob {
 	dr_t data;
@@ -30,6 +31,7 @@ struct release {
 	dr_t tree;
 	dr_t ver;
 	dr_t note;
+	dr_t finger;
 };
 
 typedef int (compar_t)(const void *a, const void *b);

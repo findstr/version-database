@@ -16,29 +16,6 @@ writeact(drb_t *drb, int act)
 }
 
 static dr_t
-readhash(const uint8_t **pp)
-{
-	int size;
-	dr_t hash;
-	const uint8_t *p = *pp;
-	size = HASH_LEN(p);	p += HASH_LEN_SIZE;
-	hash = dr_new(size, p); p += size;
-	*pp = p;
-	return hash;
-}
-
-static void
-writehash(drb_t *drb, dr_t hash)
-{
-	uint8_t *p;
-	int size;
-	p = drb_check(drb, HASH_LEN_SIZE + hash->size);
-	HASH_LEN(p) = size = hash->size;	p += HASH_LEN_SIZE;
-	memcpy(p, hash->buf, size);		p += size;
-	drb_end(drb, p);
-}
-
-static dr_t
 readname(const uint8_t **pp)
 {
 	int size;
@@ -89,29 +66,26 @@ void
 ctrl_new(drb_t *drb, struct NEW *c)
 {
 	writeact(drb, CTRL_NEW);
-	writehash(drb, c->hash);
 	writename(drb, c->name);
 	writedata(drb, c->data);
-	printf(".NEW %s hash:%s size:%.3f KiB\n", c->name->buf,
-		c->hash->buf, c->data->size/1024.f);
+	printf(".NEW %s size:%.3f KiB\n",
+		c->name->buf, c->data->size/1024.f);
 	return ;
 }
 
 static const uint8_t *
 ctrl_new_read(const uint8_t *p, struct NEW *c)
 {
-	c->hash = readhash(&p);
 	c->name = readname(&p);
 	c->data = readdata(&p);
-	printf(".NEW %s hash:%s size:%.3f KiB\n", c->name->buf,
-		c->hash->buf, c->data->size/1024.f);
+	printf(".NEW %s size:%.3f KiB\n",
+		c->name->buf, c->data->size/1024.f);
 	return p;
 }
 
 static void
 ctrl_new_free(struct NEW *n)
 {
-	dr_unref(n->hash);
 	dr_unref(n->name);
 	dr_unref(n->data);
 }
@@ -121,29 +95,26 @@ void
 ctrl_dff(drb_t *drb, struct DFF *c)
 {
 	writeact(drb, CTRL_DFF);
-	writehash(drb, c->hash);
 	writename(drb, c->name);
 	writedata(drb, c->patch);
-	printf(".DFF %s hash:%s patch:%d Byte\n", c->name->buf,
-		c->hash->buf, c->patch->size);
+	printf(".DFF %s patch:%d Byte\n",
+		c->name->buf, c->patch->size);
 	return ;
 }
 
 static const uint8_t *
 ctrl_dff_read(const uint8_t *p, struct DFF *c)
 {
-	c->hash = readhash(&p);
 	c->name = readname(&p);
 	c->patch = readdata(&p);
-	printf(".DFF %s hash:%s patch:%d Byte\n", c->name->buf,
-		c->hash->buf, c->patch->size);
+	printf(".DFF %s patch:%d Byte\n",
+		c->name->buf, c->patch->size);
 	return p;
 }
 
 static void
 ctrl_dff_free(struct DFF *n)
 {
-	dr_unref(n->hash);
 	dr_unref(n->name);
 	dr_unref(n->patch);
 }
@@ -152,31 +123,28 @@ void
 ctrl_dfx(drb_t *drb, struct DFX *c)
 {
 	writeact(drb, CTRL_DFX);
-	writehash(drb, c->hash);
 	writename(drb, c->name);
 	writename(drb, c->namea);
 	writedata(drb, c->patch);
-	printf(".DFX %s -> %s hash:%s patch:%d Byte\n", c->namea->buf,
-		c->name->buf, c->hash->buf, c->patch->size);
+	printf(".DFX %s -> %s patch:%d Byte\n",
+		c->namea->buf, c->name->buf, c->patch->size);
 	return ;
 }
 
 static const uint8_t *
 ctrl_dfx_read(const uint8_t *p, struct DFX *c)
 {
-	c->hash = readhash(&p);
 	c->name = readname(&p);
 	c->namea = readname(&p);
 	c->patch = readdata(&p);
-	printf(".DFX %s -> %s hash:%s patch:%d Byte\n", c->namea->buf,
-		c->name->buf, c->hash->buf, c->patch->size);
+	printf(".DFX %s -> %s patch:%d Byte\n",
+		c->namea->buf, c->name->buf, c->patch->size);
 	return p;
 }
 
 static void
 ctrl_dfx_free(struct DFX *n)
 {
-	dr_unref(n->hash);
 	dr_unref(n->name);
 	dr_unref(n->namea);
 	dr_unref(n->patch);
@@ -209,7 +177,6 @@ void
 ctrl_mov(drb_t *drb, struct MOV *c)
 {
 	writeact(drb, CTRL_MOV);
-	writehash(drb, c->hash);
 	writename(drb, c->name);
 	writename(drb, c->namea);
 	printf(".MOV %s => %s\n", c->namea->buf, c->name->buf);
@@ -218,7 +185,6 @@ ctrl_mov(drb_t *drb, struct MOV *c)
 static const uint8_t *
 ctrl_mov_read(const uint8_t *p, struct MOV *n)
 {
-	n->hash = readhash(&p);
 	n->name = readname(&p);
 	n->namea = readname(&p);
 	return p;
@@ -227,7 +193,6 @@ ctrl_mov_read(const uint8_t *p, struct MOV *n)
 static void
 ctrl_mov_free(struct MOV *n)
 {
-	dr_unref(n->hash);
 	dr_unref(n->name);
 	dr_unref(n->namea);
 }
