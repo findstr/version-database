@@ -2,7 +2,7 @@
 #include <errno.h>
 #include "dr.h"
 #include "object.h"
-#include "ctrl.h"
+#include "meta.h"
 #include "dir.h"
 #include "db.h"
 #include "checkout.h"
@@ -15,26 +15,29 @@ patch_content(dr_t old, dr_t patch)
 {
 	dr_t new;
 	uint8_t *w;
-	uint8_t *p = patch->buf;
-	uint8_t *e = p + patch->size;
-	uint32_t size = uint32(p);	p += 4;
+	uint32_t size;
+	const uint8_t *p = patch->buf;
+	const uint8_t *e = p + patch->size;
+	p = patch_total_read(p, &size);
 	new = dr_new(size, NULL);
 	w = new->buf;
-	printf("patch size:%d\n", patch->size);
+	printf("patch size:%d total:%d\n", patch->size, size);
 	while (p < e) {
-		uint8_t ctrl ;
-		ctrl = uint8(p);	p += 1;
-		if (ctrl == COPY) {
-			int pos, sz;
-			pos = uint32(p);p += 4;
-			sz = uint32(p); p += 4;
-			printf("copy pos:%d sz:%d\n", pos, sz);
-			memcpy(w, &old->buf[pos], sz);
-			w += sz;
-		} else if (ctrl == INSERT) {
-			int sz;
-			sz = uint32(p);	p += 4;
-			memcpy(w, p, sz); p+= sz;
+		struct PATCH patch;
+		p = patch_read(p, &patch);
+		if (patch.act == PATCH_COPY) {
+			uint32_t pos, size;
+			pos = patch.u.copy.pos;
+			size = patch.u.copy.size;
+			printf("COPY FROM %d TO %ld SIZE %d\n",
+				pos, w - new->buf, size);
+			assert(new->size - (w - new->buf) >= size);
+			memcpy(w, &old->buf[pos], size);
+			w += size;
+		} else if (patch.act == PATCH_INSERT) {
+			int sz = patch.u.insert.size;
+			assert(new->size - (w - new->buf) >= sz);
+			memcpy(w, patch.u.insert.p, sz);
 			w += sz;
 		} else {
 			assert(0);
@@ -69,21 +72,23 @@ patch(struct patch_args *args)
 	e = p + patch->size;
 	while (p < e) {
 		struct CTRL ctrl;
-		dr_t namea, patch, oldfile = NULL;
+		dr_t namea, patchd, oldfile = NULL;
 		dr_t hash = NULL, newfile = NULL;
+		printf("offset:%ld\n", p - patch->buf);
 		p = ctrl_read(p, &ctrl);
-		switch (ctrl.type) {
+		switch (ctrl.act) {
 		case CTRL_DFF:
 			namea = ctrl.u.dff.name;
-			patch = ctrl.u.dff.patch;
+			patchd = ctrl.u.dff.patch;
 			goto diff;
 		case CTRL_DFX:
 			namea = ctrl.u.dfx.namea;
-			patch = ctrl.u.dfx.patch;
+			patchd = ctrl.u.dfx.patch;
 			diff:
 			++dfn;
 			oldfile = dir_readfile(str(namea), outdir);
-			newfile = patch_content(oldfile, patch);
+			newfile = patch_content(oldfile, patchd);
+			printf("ref:%d\n", newfile->ref);
 			hash = db_hash(newfile);
 			assert(dr_cmp(hash, ctrl.u.dff.hash) == 0);
 			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
@@ -106,7 +111,7 @@ patch(struct patch_args *args)
 		dr_t namea = NULL, oldfile = NULL;
 		dr_t hash = NULL, newfile = NULL;
 		p = ctrl_read(p, &ctrl);
-		switch (ctrl.type) {
+		switch (ctrl.act) {
 		case CTRL_NEW:
 			hash = db_hash(ctrl.u.new.data);
 			assert(dr_cmp(hash, ctrl.u.new.hash) == 0);

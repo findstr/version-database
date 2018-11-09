@@ -8,6 +8,7 @@
 #include "db.h"
 #include "dc3.h"
 #include "object.h"
+#include "meta.h"
 #include "diff.h"
 
 #define COST		(10)
@@ -76,36 +77,6 @@ search(dr_t old, int *SA, const uint8_t *ns, int nsize, int *pos)
 	return sim;
 }
 
-static void
-TARGET_SIZE(drb_t *drb, int size)
-{
-	uint8_t *p = drb_check(drb, 4);
-	uint32(p) = size;	p += 4;
-	drb_end(drb, p);
-}
-
-static void
-INSERT_INTO(drb_t *drb, const uint8_t *np, int size)
-{
-	uint8_t *p = drb_check(drb, 1+4+size);
-	uint8(p) = INSERT;	p += 1;
-	uint32(p) = size;	p += 4;
-	memcpy(p, np, size);	p += size;
-	drb_end(drb, p);
-	return ;
-}
-
-static void
-COPY_FROM(drb_t *drb, uint32_t pos, uint32_t size)
-{
-	uint8_t *p = drb_check(drb, 1+4+4);
-	uint8(p) = COPY;	p += 1;
-	uint32(p) = pos;	p += 4;
-	uint32(p) = size;	p += 4;
-	drb_end(drb, p);
-	return ;
-}
-
 static dr_t
 diff_content(dr_t old, dr_t new)
 {
@@ -117,25 +88,38 @@ diff_content(dr_t old, dr_t new)
 	np = new->buf;
 	SA = dc3(old->buf, old->size);
 	drb_init(&drb, 1024);
-	TARGET_SIZE(&drb, new->size);
+	patch_total(&drb, new->size);
+	printf("new size:%d\n", nsize);
 	while (ni < nsize) {
+		struct COPY copy;
 		sim = search(old, SA, &np[ni], nsize - ni, &oi);
+		assert(sim <= nsize - ni);
 		if (sim < COST) { //has no match, so find first match segment
-			int xi, xn, xs;
+			int xi, xn = 0, xs = 0;
 			for (xi = ni+1; xi < nsize; xi++) {
 				xs = search(old, SA, &np[xi], nsize - xi, &xn);
+				assert(xs <= (nsize - xi));
 				if (xs >= COST)
 					break;
 			}
-			//printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
-			INSERT_INTO(&drb, &new->buf[ni], xi - ni);
+			if (xi > ni) {
+				struct INSERT insert;
+				insert.p = &new->buf[ni];
+				insert.size = xi - ni;
+				patch_insert(&drb, &insert);
+				//printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
+			}
 			ni = xi;
 			oi = xn;
 			sim = xs;
 		}
-		//printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
-		COPY_FROM(&drb, oi, sim);
-		ni += sim;
+		if (sim > 0) {
+			copy.pos = oi;
+			copy.size = sim;
+			patch_copy(&drb, &copy);
+			printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
+			ni += sim;
+		}
 	}
 	free(SA);
 	//printf("drb size:%d\n", drb.size);
@@ -204,9 +188,9 @@ diff(struct diff_args *args)
 		}
 		if (patch == NULL || b->data->size <= patch->size) {//no fix patch
 			struct NEW N;
-			N.name = (b->name);
-			N.hash = (b->hash);
-			N.data = (b->data);
+			N.name = b->name;
+			N.hash = b->hash;
+			N.data = b->data;
 			ctrl_new(&file, &N);
 		} else if (acost == 0) {	//great! same name
 			struct DFF D;
