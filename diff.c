@@ -13,6 +13,7 @@
 
 #define COST		(10)
 #define MIN(a, b)	((a) > (b) ? (b) : (a))
+#define ENABLE_DEL	(1)
 /*
 static void
 print(const uint8_t *from, const uint8_t *to)
@@ -212,6 +213,7 @@ diff(struct diff_args *args)
 	}
 	printf("\ndetect remove\n");
 	tree_sort(&tb, ref_namecmp);
+#if ENABLE_DEL
 	for (i = 0; i < ta.refn; i++) {
 		r = &ta.refs[i];
 		if (tree_search(&tb, r, ref_namecmp) == NULL) { //clear
@@ -220,14 +222,15 @@ diff(struct diff_args *args)
 			ctrl_del(&file, &d);
 		}
 	}
+#endif
 	r = tree_search(&tb, &r_finger, ref_namecmp);
 	printf("\n");
 	data = drb_dump(&file);
-	dir_writefile("patch", data, args->p);
 	patchhash = db_hash(data);
+	dir_writefile("patch", data, args->p);
 	dr_unref(data);
 	snprintf(buff, sizeof(buff),
-		"{\"finger\":\"%s\", \"patch\":\"%s\"}",
+		"{\"fingerprint\":\"%s\", \"patch\":\"%s\"}",
 		r->hash->buf, patchhash->buf);
 	data = dr_newstr(buff);
 	dir_writefile("version.json", data, args->p);
