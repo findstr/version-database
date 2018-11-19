@@ -94,30 +94,28 @@ diff_content(dr_t old, dr_t new)
 		struct COPY copy;
 		sim = search(old, SA, &np[ni], nsize - ni, &oi);
 		assert(sim <= nsize - ni);
-		if (sim < COST) { //has no match, so find first match segment
+		if (sim <= COST) { //has no match, so find first match segment
+			struct INSERT insert;
 			int xi, xn = 0, xs = 0;
 			for (xi = ni+1; xi < nsize; xi++) {
 				xs = search(old, SA, &np[xi], nsize - xi, &xn);
 				assert(xs <= (nsize - xi));
-				if (xs >= COST)
+				if (xs > COST)
 					break;
 			}
-			if (xi > ni) {
-				struct INSERT insert;
-				insert.p = &new->buf[ni];
-				insert.size = xi - ni;
-				patch_insert(&drb, &insert);
-				//printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
-			}
+			insert.p = &new->buf[ni];
+			insert.size = xi - ni;
+			patch_insert(&drb, &insert);
+			printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
 			ni = xi;
 			oi = xn;
 			sim = xs;
 		}
-		if (sim > 0) {
+		if (sim > COST) {
 			copy.pos = oi;
 			copy.size = sim;
 			patch_copy(&drb, &copy);
-			//printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
+			printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
 			ni += sim;
 		}
 	}
@@ -132,18 +130,16 @@ diff(struct diff_args *args)
 	int i, j;
 	drb_t file;
 	dr_t data;
-	dr_t finger, patchhash;
+	dr_t patchhash;
 	char buff[2048];
-	struct ref *r, r_finger;
+	struct ref *r;
 	struct release ra, rb;
 	struct tree ta, tb;
-	r_finger.name = dr_newstr(FINGER);
-	r_finger.data = NULL;
+	int add, dff, mov, del;
 	db_readrel(&ra, args->a);
 	db_readrel(&rb, args->b);
 	db_readtree(&ta, ra.tree);
 	db_readtree(&tb, rb.tree);
-	finger = dr_ref(rb.finger);
 	printf("tree a:%s\n", ra.tree->buf);
 	printf("tree b:%s\n", rb.tree->buf);
 	release_destroy(&ra);
@@ -152,6 +148,7 @@ diff(struct diff_args *args)
 	drb_init(&file, 1024);
 	printf("diff start\n");
 	printf("detect change\n");
+	add = 0; dff = 0; mov = 0; del = 0;
 	for (i = 0; i < tb.refn; i++) {
 		int acost = 0;
 		struct ref *b;
@@ -164,6 +161,7 @@ diff(struct diff_args *args)
 				M.namea = x->name;
 				M.name = b->name;
 				ctrl_mov(&file, &M);
+				mov++;
 			} else {
 				//printf("%s is same, skip it.\n", b->name->buf);
 			}
@@ -196,18 +194,21 @@ diff(struct diff_args *args)
 			N.name = b->name;
 			N.data = b->data;
 			ctrl_new(&file, &N);
+			++add;
 		} else if (acost == 0) {	//great! same name
 			struct DFF D;
 			assert(dr_cmp(b->name, a->name) == 0);
 			D.name = b->name;
 			D.patch = patch;
 			ctrl_dff(&file, &D);
+			++dff;
 		} else {
 			struct DFX D;
 			D.namea = a->name;
 			D.name = b->name;
 			D.patch = patch;
 			ctrl_dfx(&file, &D);
+			++dff;
 		}
 		dr_unref(patch);
 	}
@@ -220,28 +221,27 @@ diff(struct diff_args *args)
 			struct DEL d;
 			d.name = r->name;
 			ctrl_del(&file, &d);
+			++del;
 		}
 	}
 #endif
-	r = tree_search(&tb, &r_finger, ref_namecmp);
 	printf("\n");
 	data = drb_dump(&file);
 	patchhash = db_hash(data);
-	dir_writefile("patch", data, args->p);
+	dir_writefile("patch.dat", data, args->p);
 	dr_unref(data);
 	snprintf(buff, sizeof(buff),
-		"{\"fingerprint\":\"%s\", \"patch\":\"%s\"}",
-		r->hash->buf, patchhash->buf);
+		"{\"add\":%d, \"dff\":%d, \"mov\":%d, \"del\":%d, \"hash\":\"%s\"}",
+		add, dff, mov, del, patchhash->buf);
 	data = dr_newstr(buff);
-	dir_writefile("version.json", data, args->p);
+	dir_writefile("patch.json", data, args->p);
 	dr_unref(data);
-	dr_unref(finger);
 	dr_unref(patchhash);
-	dr_unref(r_finger.name);
 	tree_destroy(&ta);
 	tree_destroy(&tb);
 	return ;
 }
+
 
 #ifdef MAIN
 
