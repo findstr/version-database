@@ -7,7 +7,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "sha256.h"
+#include "conf.h"
 #include "object.h"
 #include "dir.h"
 #include "dr.h"
@@ -16,7 +16,6 @@
 #define DB		".db"
 #define ROOT		DB"/objects"
 #define HEAD		DB"/HEAD"
-#define HASH_SIZE	(32)
 
 dr_t
 db_hash(dr_t d)
@@ -25,11 +24,11 @@ db_hash(dr_t d)
 	char *p;
 	dr_t hash;
 	uint8_t digest[HASH_SIZE];
-	sha256_context ctx;
+	HASH_CTX ctx;
 	hash = dr_new(HASH_SIZE * 2, NULL);
-	sha256_starts(&ctx);
-	sha256_update(&ctx, d->buf, d->size);
-	sha256_finish(&ctx, digest);
+	HASH_Init(&ctx);
+	HASH_Update(&ctx, d->buf, d->size);
+	HASH_Final(digest, &ctx);
 	p = (char *)hash->buf;
 	for (i = 0; i < HASH_SIZE; i++) {
 		sprintf(p, "%02x", digest[i]);

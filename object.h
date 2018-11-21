@@ -7,7 +7,6 @@
 #define BLOB	MC('B', 'L', 'O', 'B')
 #define TREE	MC('T', 'R', 'E', 'E')
 #define RELEASE	MC('R', 'E', 'L', ' ')
-#define FINGER	"_fingerprint"
 
 struct blob {
 	dr_t data;

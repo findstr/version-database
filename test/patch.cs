@@ -133,7 +133,7 @@ namespace vdb {
 		private string patchdir = null;
 		private string patchtmp = null;
 		private string headname = "_HEAD";
-		private SHA256 hashmethod = SHA256.Create();
+		private SHA1 hashmethod = SHA1.Create();
 		private List<DEL> dellist = null;
 		private List<string> modified = null;
 		private Dictionary<string, byte[]> filecache = new Dictionary<string,byte[]>();
@@ -277,7 +277,7 @@ namespace vdb {
 			if (data == null)
 				return false;
 			return data_hashcmp(data, dsthash);
-		}	
+		}
 		private void finger_parse(string path = null) {
 			if (path == null)
 				path = fingerpath;
@@ -353,7 +353,7 @@ namespace vdb {
 			}
 			writehead(step.DELETE);
 		}
-	
+
 		private void step_apply() {
 			modified = new List<string>();
 			UnityEngine.Debug.Log("step_apply");
@@ -458,7 +458,7 @@ namespace vdb {
 				step_apply();
 			APPLY:
 				fails = step_verify();
-				if (fails != null) 
+				if (fails != null)
 					return fails;
 			VERIFY:
 				step_finish(patchfile);

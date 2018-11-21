@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "conf.h"
 #include "dr.h"
 #include "dir.h"
 #include "db.h"
@@ -13,15 +14,6 @@
 
 #define COST		(10)
 #define MIN(a, b)	((a) > (b) ? (b) : (a))
-#define ENABLE_DEL	(1)
-/*
-static void
-print(const uint8_t *from, const uint8_t *to)
-{
-	while (from < to)
-		fprintf(stderr, "%c", *from++);
-	printf("\n");
-}*/
 
 static int
 match(const uint8_t *a, int an, const uint8_t *b, int bn, int *n)
@@ -106,7 +98,7 @@ diff_content(dr_t old, dr_t new)
 			insert.p = &new->buf[ni];
 			insert.size = xi - ni;
 			patch_insert(&drb, &insert);
-			printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
+			//printf("INSERTT INTO %d SIZE %d\n", ni, xi - ni);
 			ni = xi;
 			oi = xn;
 			sim = xs;
@@ -115,7 +107,7 @@ diff_content(dr_t old, dr_t new)
 			copy.pos = oi;
 			copy.size = sim;
 			patch_copy(&drb, &copy);
-			printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
+			//printf("COPY FROM %d TO %d SIZE %d\n", oi, ni, sim);
 			ni += sim;
 		}
 	}
@@ -123,7 +115,7 @@ diff_content(dr_t old, dr_t new)
 	//printf("drb size:%d\n", drb.size);
 	return drb_dump(&drb);
 }
-
+#if 0
 void
 diff(struct diff_args *args)
 {
@@ -241,6 +233,140 @@ diff(struct diff_args *args)
 	tree_destroy(&tb);
 	return ;
 }
+
+#else
+static int
+cmpstr(dr_t a, dr_t b)
+{
+//13
+	char c1, c2, c;
+	const char *sa, *ea, *sb, *eb;
+	sa = (char *)a->buf;
+	sb = (char *)b->buf;
+	ea = sa + a->size - 0;
+	eb = sb + b->size - 0;
+	while (sa < ea && sb < eb) {
+		c1 = *sa++;
+		c2 = *sb++;
+		c = c1 - c2;
+		if (c != 0)
+			return c;
+	}
+	return (ea - sa) - (eb - sb);
+}
+
+static int
+shortnamecmp(const void *aa, const void *bb)
+{
+	struct ref *a = (struct ref *)aa;
+	struct ref *b = (struct ref *)bb;
+	return cmpstr(a->name, b->name);
+}
+
+void
+diff(struct diff_args *args)
+{
+	int i;
+	drb_t file;
+	char buff[2048];
+	dr_t data, patchhash;
+	int add, dff, mov, del, dirty;
+	struct release ra, rb;
+	struct tree ta, tb;
+	db_readrel(&ra, args->a);
+	db_readrel(&rb, args->b);
+	db_readtree(&ta, ra.tree);
+	db_readtree(&tb, rb.tree);
+	printf("tree a:%s\n", ra.tree->buf);
+	printf("tree b:%s\n", rb.tree->buf);
+	release_destroy(&ra);
+	release_destroy(&rb);
+	tree_sort(&ta, shortnamecmp);
+	drb_init(&file, 1024);
+	printf("diff start\n");
+	printf("detect change\n");
+	add = 0; dff = 0; mov = 0; del = 0; dirty = 0;
+	for (i = 0; i < tb.refn; i++) {
+		struct ref *b;
+		struct ref *a;
+		dr_t patch = NULL;
+		b = &tb.refs[i];
+		if (b->data == NULL)
+			b->data = db_read(b->hash);
+		a = tree_search(&ta, b, shortnamecmp);
+		if (a == NULL) {
+			struct NEW N;
+			N.name = (b->name);
+			N.data = (b->data);
+			ctrl_new(&file, &N);
+			dirty += b->data->size;
+			add++;
+			continue;
+		}
+		if (dr_cmp(a->hash, b->hash) == 0) {
+			if (dr_cmp(b->name, a->name) != 0) {
+				struct MOV M;
+				M.namea = a->name;
+				M.name = b->name;
+				ctrl_mov(&file, &M);
+				dirty += b->data->size;
+				++mov;
+			} else {
+				//printf("%s is same, skip it.\n", b->name->buf);
+			}
+			continue;
+		}
+		dirty += b->data->size;
+		if (a->data == NULL)
+			a->data = db_read(a->hash);
+		patch = diff_content(a->data, b->data);
+		if (b->data->size <= patch->size) {//no fix patch
+			struct NEW N;
+			N.name = (b->name);
+			N.data = (b->data);
+			ctrl_new(&file, &N);
+			add++;
+		} else {
+			struct DFX D;
+			D.namea = a->name;
+			D.name = b->name;
+			D.patch = patch;
+			ctrl_dfx(&file, &D);
+			++dff;
+		}
+		dr_unref(patch);
+	}
+	printf("\ndetect remove\n");
+	tree_sort(&tb, ref_namecmp);
+#if ENABLE_DEL
+	for (i = 0; i < ta.refn; i++) {
+		struct ref *r = &ta.refs[i];
+		if (tree_search(&tb, r, ref_namecmp) == NULL) { //clear
+			struct DEL d;
+			d.name = r->name;
+			ctrl_del(&file, &d);
+			++del;
+		}
+	}
+#endif
+	printf("\n");
+	data = drb_dump(&file);
+	patchhash = db_hash(data);
+	dir_writefile("patch.dat", data, args->p);
+	dr_unref(data);
+	snprintf(buff, sizeof(buff),
+		"{\"add\":%d, \"dff\":%d, \"mov\":%d, \"del\":%d, \"hash\":\"%s\"}",
+		add, dff, mov, del, patchhash->buf);
+	data = dr_newstr(buff);
+	dir_writefile("patch.json", data, args->p);
+	dr_unref(data);
+	dr_unref(patchhash);
+	tree_destroy(&ta);
+	tree_destroy(&tb);
+	return ;
+}
+
+#endif
 
 
 #ifdef MAIN

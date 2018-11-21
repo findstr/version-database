@@ -2,7 +2,7 @@
 
 SRC:=main.c release.c history.c diff.c patch.c list.c checkout.c\
 		dir.c db.c object.c meta.c\
-		dc3.c sha256.c
+		dc3.c sha1.c
 
 all:vdb
 

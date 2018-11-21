@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <limits.h>
 #include <stdlib.h>
+#include "conf.h"
 #include "db.h"
 #include "dir.h"
 #include "db.h"
@@ -29,7 +30,7 @@ fingerprint(struct tree *tree)
 	}
 	finger = drb_dump(&drb);
 	r = &tree->refs[i];
-	r->name = dr_newstr(FINGER);
+	r->name = dr_newstr(FINGERPRINT_NAME);
 	r->hash = db_write(r->name, finger);
 	++tree->refn;
 	dr_unref(finger);
@@ -84,7 +85,9 @@ release(struct release_args *args)
 		rel.prev = dr_ref(head);
 		rel.ver = dr_ref(args->version);
 		rel.note = dr_ref(args->describe);
+#if ENABLE_FINGERPRINT
 		rel.finger = fingerprint(&tree);
+#endif
 		treeobj = tree_marshal(&tree);
 		treehash = db_write(rel.ver, treeobj);
 		rel.tree = dr_ref(treehash);
