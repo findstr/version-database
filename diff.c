@@ -128,6 +128,8 @@ diff(struct diff_args *args)
 	struct release ra, rb;
 	struct tree ta, tb;
 	int add, dff, mov, del;
+	db_aliashash(&args->a);
+	db_aliashash(&args->b);
 	db_readrel(&ra, args->a);
 	db_readrel(&rb, args->b);
 	db_readtree(&ta, ra.tree);
@@ -273,6 +275,8 @@ diff(struct diff_args *args)
 	int add, dff, mov, del, dirty;
 	struct release ra, rb;
 	struct tree ta, tb;
+	db_aliashash(&args->a);
+	db_aliashash(&args->b);
 	db_readrel(&ra, args->a);
 	db_readrel(&rb, args->b);
 	db_readtree(&ta, ra.tree);

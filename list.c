@@ -10,6 +10,7 @@ list(struct list_args *args)
 	int i, n;
 	struct release r;
 	struct tree t;
+	db_aliashash(&args->hash);
 	db_readrel(&r, args->hash);
 	db_readtree(&t, r.tree);
 	release_destroy(&r);

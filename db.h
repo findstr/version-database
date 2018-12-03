@@ -13,7 +13,7 @@ void db_readrel(struct release *rel, dr_t hash);
 void db_readtree(struct tree *tree, dr_t hash);
 dr_t db_readhead(struct release *rel, struct tree *tree);
 dr_t db_writehead(struct release *rel);
-
+void db_aliashash(dr_t *a);
 
 void db_init();
 
