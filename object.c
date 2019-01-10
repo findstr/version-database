@@ -15,6 +15,14 @@ ref_destroy(struct ref *r)
 	dr_unref(r->data);
 };
 
+static void
+ref_clone(struct ref *to, struct ref *from)
+{
+	to->hash = dr_ref(from->hash);
+	to->name = dr_ref(from->name);
+	to->data = dr_ref(from->data);
+}
+
 int
 ref_hashcmp(const void *aa, const void *bb)
 {
@@ -120,6 +128,16 @@ tree_search(struct tree *t, struct ref *k, compar_t cb)
 	return bsearch(k, t->refs, t->refn, sizeof(*k), cb);
 }
 
+void
+tree_clone(struct tree *to, struct tree *from)
+{
+	int i;
+	to->refn = from->refn;
+	to->refs = MALLOC(from->refn * sizeof(struct ref));
+	for (i = 0; i < from->refn; i++)
+		ref_clone(&to->refs[i], &from->refs[i]);
+	return ;
+}
 
 dr_t
 release_marshal(struct release *r)

@@ -45,6 +45,7 @@ void blob_destroy(struct blob *b);
 dr_t tree_marshal(struct tree *t);
 void tree_unmarshal(struct tree *t, dr_t data);
 void tree_destroy(struct tree *t);
+void tree_clone(struct tree *to, struct tree *from);
 void tree_sort(struct tree *t, compar_t cb);
 struct ref *tree_search(struct tree *t, struct ref *k, compar_t cb);
 

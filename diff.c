@@ -115,47 +115,47 @@ diff_content(dr_t old, dr_t new)
 	//printf("drb size:%d\n", drb.size);
 	return drb_dump(&drb);
 }
-#if 0
+#if 1
 void
 diff(struct diff_args *args)
 {
-	int i, j;
+	int i;
 	drb_t file;
 	dr_t data;
 	dr_t patchhash;
 	char buff[2048];
 	struct ref *r;
 	struct release ra, rb;
-	struct tree ta, tb;
+	struct tree tb, ta_name, ta_hash;
 	int add, dff, mov, del;
 	db_aliashash(&args->a);
 	db_aliashash(&args->b);
 	db_readrel(&ra, args->a);
 	db_readrel(&rb, args->b);
-	db_readtree(&ta, ra.tree);
+	db_readtree(&ta_name, ra.tree);
 	db_readtree(&tb, rb.tree);
 	printf("tree a:%s\n", ra.tree->buf);
 	printf("tree b:%s\n", rb.tree->buf);
 	release_destroy(&ra);
 	release_destroy(&rb);
-	tree_sort(&ta, ref_hashcmp);
+	tree_clone(&ta_hash, &ta_name);
+	tree_sort(&ta_name, ref_namecmp);
+	tree_sort(&ta_hash, ref_hashcmp);
 	drb_init(&file, 1024);
 	printf("diff start\n");
 	printf("detect change\n");
 	add = 0; dff = 0; mov = 0; del = 0;
 	for (i = 0; i < tb.refn; i++) {
-		int acost = 0;
-		struct ref *b;
-		struct ref *a, *x;
+		struct ref *a, *b;
 		dr_t patch = NULL;
 		b = &tb.refs[i];
-		if ((x = tree_search(&ta, b, ref_hashcmp)) != NULL) {
-			if (dr_cmp(b->name, x->name) != 0) {
+		if ((a = tree_search(&ta_hash, b, ref_hashcmp))) {
+			if (dr_cmp(b->name, a->name) != 0) {
 				struct MOV M;
-				M.namea = x->name;
+				M.namea = a->name;
 				M.name = b->name;
 				ctrl_mov(&file, &M);
-				mov++;
+				++mov;
 			} else {
 				//printf("%s is same, skip it.\n", b->name->buf);
 			}
@@ -163,54 +163,38 @@ diff(struct diff_args *args)
 		}
 		if (b->data == NULL)
 			b->data = db_read(b->hash);
-		for (j = 0; j < ta.refn; j++) {
-			int cost;
-			dr_t xp;
-			struct ref *x;
-			x = &ta.refs[j];
-			if (x->data == NULL)
-				x->data = db_read(x->hash);
-			if (dr_cmp(b->name, x->name) == 0)
-				cost = 0;
-			else
-				cost = x->name->size + 4;
-			xp = diff_content(x->data, b->data);
-			if (patch == NULL ||
-				(xp->size + cost) < (patch->size + acost)) {
-				patch = dr_ref(xp);
-				a = x;
-				acost = cost;
-			}
-			dr_unref(xp);
-		}
-		if (patch == NULL || b->data->size <= patch->size) {//no fix patch
+		a = tree_search(&ta_name, b, ref_namecmp);
+		if (a == NULL) {
 			struct NEW N;
-			N.name = b->name;
-			N.data = b->data;
+			N.name = (b->name);
+			N.data = (b->data);
 			ctrl_new(&file, &N);
-			++add;
-		} else if (acost == 0) {	//great! same name
-			struct DFF D;
-			assert(dr_cmp(b->name, a->name) == 0);
-			D.name = b->name;
-			D.patch = patch;
-			ctrl_dff(&file, &D);
-			++dff;
+			add++;
 		} else {
-			struct DFX D;
-			D.namea = a->name;
-			D.name = b->name;
-			D.patch = patch;
-			ctrl_dfx(&file, &D);
-			++dff;
+			if (a->data == NULL)
+				a->data = db_read(a->hash);
+			patch = diff_content(a->data, b->data);
+			if (b->data->size <= patch->size) {//no fix patch
+				struct NEW N;
+				N.name = (b->name);
+				N.data = (b->data);
+				ctrl_new(&file, &N);
+				add++;
+			} else {
+				struct DFF D;
+				D.name = b->name;
+				D.patch = patch;
+				ctrl_dff(&file, &D);
+				++dff;
+			}
+			dr_unref(patch);
 		}
-		dr_unref(patch);
 	}
 	printf("\ndetect remove\n");
-	tree_sort(&tb, ref_namecmp);
 #if ENABLE_DEL
-	for (i = 0; i < ta.refn; i++) {
-		r = &ta.refs[i];
+	tree_sort(&tb, ref_namecmp);
+	for (i = 0; i < ta_name.refn; i++) {
+		r = &ta_name.refs[i];
 		if (tree_search(&tb, r, ref_namecmp) == NULL) { //clear
 			struct DEL d;
 			d.name = r->name;
@@ -225,14 +209,17 @@ diff(struct diff_args *args)
 	dir_writefile("patch.dat", data, args->p);
 	dr_unref(data);
 	snprintf(buff, sizeof(buff),
-		"{\"add\":%d, \"dff\":%d, \"mov\":%d, \"del\":%d, \"hash\":\"%s\"}",
-		add, dff, mov, del, patchhash->buf);
+		"{\"add\":%d, \"dff\":%d, \"mov\":%d, "
+		"\"del\":%d, \"hash\":\"%s\" \"size\":%d }",
+		add, dff, mov, del, patchhash->buf, data->size);
 	data = dr_newstr(buff);
 	dir_writefile("patch.json", data, args->p);
 	dr_unref(data);
 	dr_unref(patchhash);
-	tree_destroy(&ta);
+	tree_destroy(&ta_name);
+	tree_destroy(&ta_hash);
 	tree_destroy(&tb);
+	printf("%s\n", buff);
 	return ;
 }
 
@@ -240,13 +227,12 @@ diff(struct diff_args *args)
 static int
 cmpstr(dr_t a, dr_t b)
 {
-//13
 	char c1, c2, c;
 	const char *sa, *ea, *sb, *eb;
 	sa = (char *)a->buf;
 	sb = (char *)b->buf;
-	ea = sa + a->size - 0;
-	eb = sb + b->size - 0;
+	ea = sa + a->size - 13;
+	eb = sb + b->size - 13;
 	while (sa < ea && sb < eb) {
 		c1 = *sa++;
 		c2 = *sb++;
@@ -272,7 +258,7 @@ diff(struct diff_args *args)
 	drb_t file;
 	char buff[2048];
 	dr_t data, patchhash;
-	int add, dff, mov, del, dirty;
+	int add, dff, mov, del;
 	struct release ra, rb;
 	struct tree ta, tb;
 	db_aliashash(&args->a);
@@ -289,7 +275,7 @@ diff(struct diff_args *args)
 	drb_init(&file, 1024);
 	printf("diff start\n");
 	printf("detect change\n");
-	add = 0; dff = 0; mov = 0; del = 0; dirty = 0;
+	add = 0; dff = 0; mov = 0; del = 0;
 	for (i = 0; i < tb.refn; i++) {
 		struct ref *b;
 		struct ref *a;
@@ -303,7 +289,6 @@ diff(struct diff_args *args)
 			N.name = (b->name);
 			N.data = (b->data);
 			ctrl_new(&file, &N);
-			dirty += b->data->size;
 			add++;
 			continue;
 		}
@@ -313,14 +298,12 @@ diff(struct diff_args *args)
 				M.namea = a->name;
 				M.name = b->name;
 				ctrl_mov(&file, &M);
-				dirty += b->data->size;
 				++mov;
 			} else {
 				//printf("%s is same, skip it.\n", b->name->buf);
 			}
 			continue;
 		}
-		dirty += b->data->size;
 		if (a->data == NULL)
 			a->data = db_read(a->hash);
 		patch = diff_content(a->data, b->data);

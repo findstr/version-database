@@ -31,7 +31,8 @@ dr_cmp(dr_t a, dr_t b)
 static inline dr_t
 dr_ref(dr_t d)
 {
-	++d->ref;
+	if (d != NULL)
+		++d->ref;
 	return d;
 }
 
