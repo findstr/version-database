@@ -29,8 +29,8 @@ patch_content(dr_t old, dr_t patch)
 			uint32_t pos, size;
 			pos = patch.u.copy.pos;
 			size = patch.u.copy.size;
-			printf("COPY FROM %d TO %ld SIZE %d\n",
-				pos, w - new->buf, size);
+			//printf("COPY FROM %d TO %ld SIZE %d\n",
+			//	pos, w - new->buf, size);
 			assert(new->size - (w - new->buf) >= size);
 			memcpy(w, &old->buf[pos], size);
 			w += size;
@@ -74,7 +74,7 @@ patch(struct patch_args *args)
 		struct CTRL ctrl;
 		dr_t namea, patchd;
 		dr_t newfile = NULL, oldfile = NULL;
-		printf("offset:%ld\n", p - patch->buf);
+		//printf("offset:%ld\n", p - patch->buf);
 		p = ctrl_read(p, &ctrl);
 		switch (ctrl.act) {
 		case CTRL_DFF:
@@ -88,7 +88,7 @@ patch(struct patch_args *args)
 			++dfn;
 			oldfile = dir_readfile(str(namea), outdir);
 			newfile = patch_content(oldfile, patchd);
-			printf("ref:%d\n", newfile->ref);
+			//printf("ref:%d\n", newfile->ref);
 			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
 			break;
 		case CTRL_MOV:
@@ -132,6 +132,7 @@ patch(struct patch_args *args)
 	dr_unref(outtemp);
 	return ;
 }
+
 
 #ifdef MAIN
 

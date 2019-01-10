@@ -10,6 +10,8 @@
 #include "dc3.h"
 #include "object.h"
 #include "meta.h"
+#include "checkout.h"
+#include "patch.h"
 #include "diff.h"
 
 #define COST		(10)
@@ -115,25 +117,74 @@ diff_content(dr_t old, dr_t new)
 	//printf("drb size:%d\n", drb.size);
 	return drb_dump(&drb);
 }
-#if 1
-void
-diff(struct diff_args *args)
+
+static void
+verify(dr_t a, dr_t b, dr_t p)
+{
+	char *s, *e, buf[1024];
+	dr_t apath, bpath;
+	dr_t fingera, fingerb;
+	struct patch_args args;
+	snprintf(buf, sizeof(buf), "_temp/%s/", str(a));
+	apath = dr_newstr(buf);
+	snprintf(buf, sizeof(buf), "_temp/%s/", str(b));
+	bpath = dr_newstr(buf);
+	//checkout
+	checkout(a, apath);
+	checkout(b, bpath);
+	args.hash = a;
+	args.patch = p;
+	args.output = apath;
+	patch(&args);
+	//verify finger
+	snprintf(buf, sizeof(buf), "%s/"FINGERPRINT_NAME, str(apath));
+	fingera = dir_readfile(buf, NULL);
+	snprintf(buf, sizeof(buf), "%s/"FINGERPRINT_NAME, str(bpath));
+	fingerb = dir_readfile(buf, NULL);
+	assert(dr_cmp(fingera, fingerb) == 0);
+	//verify file
+	s = e = str(fingera);
+	e += fingera->size;
+	while (s < e) {
+		dr_t data, dhash;
+		char *hash, *path;
+		hash = s; s = strchr(s, '\t'); *s = 0;
+		path = ++s; s = strchr(s, '\n'); *s++ = 0;
+		data = dir_readfile(path, apath);
+		dhash = db_hash(data);
+		if (strcmp(str(dhash), hash) != 0) {
+			fprintf(stderr, "%s != %s", hash, str(dhash));
+			exit(EINVAL);
+		}
+		dr_unref(data);
+		dr_unref(dhash);
+	}
+	dr_unref(fingera);
+	dr_unref(fingerb);
+	dr_unref(apath);
+	dr_unref(bpath);
+	system("rm -rf _temp");
+}
+
+static void
+diff_tree(dr_t a, dr_t b, dr_t root)
 {
 	int i;
 	drb_t file;
-	dr_t data;
+	dr_t data, afinger;
 	dr_t patchhash;
-	char buff[2048];
+	char buf[2048];
 	struct ref *r;
 	struct release ra, rb;
 	struct tree tb, ta_name, ta_hash;
 	int add, dff, mov, del;
-	db_aliashash(&args->a);
-	db_aliashash(&args->b);
-	db_readrel(&ra, args->a);
-	db_readrel(&rb, args->b);
+	db_aliashash(&a);
+	db_aliashash(&b);
+	db_readrel(&ra, a);
+	db_readrel(&rb, b);
 	db_readtree(&ta_name, ra.tree);
 	db_readtree(&tb, rb.tree);
+	afinger = dr_ref(ra.finger);
 	printf("tree a:%s\n", ra.tree->buf);
 	printf("tree b:%s\n", rb.tree->buf);
 	release_destroy(&ra);
@@ -190,7 +241,7 @@ diff(struct diff_args *args)
 			dr_unref(patch);
 		}
 	}
-	printf("\ndetect remove\n");
+	printf("detect remove\n");
 #if ENABLE_DEL
 	tree_sort(&tb, ref_namecmp);
 	for (i = 0; i < ta_name.refn; i++) {
@@ -203,24 +254,59 @@ diff(struct diff_args *args)
 		}
 	}
 #endif
-	printf("\n");
 	data = drb_dump(&file);
 	patchhash = db_hash(data);
-	dir_writefile("patch.dat", data, args->p);
+	snprintf(buf, sizeof(buf), "%s/patch.dat", str(afinger));
+	dir_writefile(buf, data, root);
 	dr_unref(data);
-	snprintf(buff, sizeof(buff),
+	snprintf(buf, sizeof(buf),
 		"{\"add\":%d, \"dff\":%d, \"mov\":%d, "
 		"\"del\":%d, \"hash\":\"%s\" \"size\":%d }",
 		add, dff, mov, del, patchhash->buf, data->size);
-	data = dr_newstr(buff);
-	dir_writefile("patch.json", data, args->p);
+	data = dr_newstr(buf);
+	snprintf(buf, sizeof(buf), "%s/patch.json", str(afinger));
+	dir_writefile(buf, data, root);
+	printf("%s\n\n", str(data));
+	snprintf(buf, sizeof(buf), "%s/%s/patch.dat", str(root), str(afinger));
 	dr_unref(data);
 	dr_unref(patchhash);
+	dr_unref(afinger);
 	tree_destroy(&ta_name);
 	tree_destroy(&ta_hash);
 	tree_destroy(&tb);
-	printf("%s\n", buff);
+	data = dr_newstr(buf);
+	verify(a, b, data);
+	dr_unref(data);
 	return ;
+}
+
+#if 1
+void
+diff(struct diff_args *args)
+{
+	dr_t head;
+	struct release rel;
+	if (args->r == 0)
+		return diff_tree(args->a, args->b, args->o);
+	head = db_readhead(&rel, NULL);
+	if (head->size == 0) {
+		printf("Empty db\n");
+	} else {
+		for (;;) {
+			dr_t h;
+			if (rel.prev->size <= 0)
+				break;
+			h = dr_ref(rel.prev);
+			diff_tree(h, head, args->o);
+			release_destroy(&rel);
+			db_readrel(&rel, h);
+			dr_unref(h);
+		}
+	}
+	dr_unref(head);
+	release_destroy(&rel);
+	return ;
+
 }
 
 #else

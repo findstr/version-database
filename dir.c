@@ -104,8 +104,8 @@ changedir(char buf[PATH_MAX], const char *path, dr_t root)
 	return path;
 }
 
-static void
-checkdir(const char *path)
+void
+dir_ensure(const char *path)
 {
 	char buf[PATH_MAX];
 	char *p, *s, *e;
@@ -115,6 +115,7 @@ checkdir(const char *path)
 	while ((e = strchr(s, '/'))) {
 		int ret;
 		*e = 0;
+		errno = 0;
 		ret = mkdir(p, 0755);
 		if (ret == -1 && errno != EEXIST) {
 			fprintf(stderr, "mkdir '%s' %s\n", p, strerror(errno));
@@ -148,7 +149,7 @@ dir_writefile(const char *path, dr_t d, dr_t root)
 	int fd, ret;
 	char buf[PATH_MAX];
 	path = changedir(buf, path, root);
-	checkdir(path);
+	dir_ensure(path);
 	fd = open(path, O_CREAT | O_RDWR | O_TRUNC, 0644);
 	if (fd < 0) {
 		fprintf(stderr, "FATAL: write %s errno:%s\n",
@@ -168,7 +169,7 @@ dir_rename(const char *from, const char *to, dr_t root)
 	char fbuf[PATH_MAX], tbuf[PATH_MAX];
 	from = changedir(fbuf, from, root);
 	to = changedir(tbuf, to, root);
-	checkdir(to);
+	dir_ensure(to);
 	ret = rename(from, to);
 	assert(ret == 0);
 	return ;
@@ -198,7 +199,7 @@ dir_movdir(dr_t from, dr_t to)
 		dr_t d = list[i];
 		memcpy(&buf[tlen], &d->buf[flen], d->size - flen);
 		buf[d->size - flen + tlen] = 0;
-		checkdir(buf);
+		dir_ensure(buf);
 		ret = remove(buf);
 		assert(ret == 0 || (ret == -1 && errno == ENOENT));
 		ret = rename((char *)d->buf, buf);

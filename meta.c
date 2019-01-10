@@ -202,7 +202,6 @@ const uint8_t *
 ctrl_read(const uint8_t *p, struct CTRL *ctrl)
 {
 	ctrl->act = uint8(p);	p += 1;
-	printf("READ:%x\n", ctrl->act);
 	switch (ctrl->act) {
 	case CTRL_NEW:
 		return ctrl_new_read(p, &ctrl->u.new);

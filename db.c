@@ -35,7 +35,6 @@ db_hash(dr_t d)
 		p += 2;
 	}
 	return hash;
-
 }
 
 static dr_t

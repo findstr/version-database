@@ -111,8 +111,11 @@ diff_h(int argc, char *argv[])
 	int c;
 	struct diff_args args;
 	memset(&args, 0, sizeof(args));
-	while ((c = getopt(argc, argv, "a:b:o:?")) != -1){
+	while ((c = getopt(argc, argv, "ra:b:o:?")) != -1){
 		switch (c) {
+		case 'r':
+			args.r = 1;
+			break;
 		case 'a':
 			args.a = dr_newstr(optarg);
 			break;
@@ -120,22 +123,24 @@ diff_h(int argc, char *argv[])
 			args.b = dr_newstr(optarg);
 			break;
 		case 'o':
-			args.p = dr_newstr(optarg);
+			args.o = dr_newstr(optarg);
 			break;
 		case '?':
 			exit(EINVAL);
 			break;
 		}
 	}
-	if (!(args.a && args.b && args.p)) {
-		fprintf(stderr, "usage: %s diff -a from -b to -o patch\n",
-			argv[0]);
+	if (!(args.o && ((args.a && args.b) || args.r == 1))) {
+		fprintf(stderr, "usage: \n"
+				"\t%s diff -a from -b to -o dir\n"
+				"\t%s diff -r -o dir\n",
+			argv[0], argv[0]);
 		exit(EINVAL);
 	}
 	diff(&args);
 	dr_unref(args.a);
 	dr_unref(args.b);
-	dr_unref(args.p);
+	dr_unref(args.o);
 	return ;
 }
 

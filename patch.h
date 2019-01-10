@@ -10,5 +10,4 @@ struct patch_args {
 
 void patch(struct patch_args *args);
 
-
 #endif

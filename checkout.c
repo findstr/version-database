@@ -10,19 +10,16 @@
 void
 checkout(dr_t hash, dr_t outdir)
 {
-	int i, ret;
+	int i;
 	struct release r;
 	struct tree t;
 	db_readrel(&r, hash);
 	db_readtree(&t, r.tree);
-	printf("tree:%s\n", r.tree->buf);
+	printf("checkout tree:%s\n", r.tree->buf);
 	release_destroy(&r);
-	ret = mkdir(str(outdir), 0755);
-	if (ret == -1) {
-		fprintf(stderr, "checkout folder '%s' is exist\n",
-			outdir->buf);
-		exit(EINVAL);
-	}
+	dir_ensure(str(outdir));
+	if (errno == EEXIST)
+		printf("warning: checkout folder '%s' is exist\n", str(outdir));
 	for (i = 0; i < t.refn; i++) {
 		struct ref *f;
 		f = &t.refs[i];
