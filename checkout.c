@@ -13,7 +13,9 @@ checkout(dr_t hash, dr_t outdir)
 	int i;
 	struct release r;
 	struct tree t;
+	hash = db_aliashash(hash);
 	db_readrel(&r, hash);
+	dr_unref(hash);
 	db_readtree(&t, r.tree);
 	printf("checkout tree:%s\n", r.tree->buf);
 	release_destroy(&r);

@@ -194,10 +194,10 @@ db_writehead(struct release *rel)
 #define ALIAS		("HEAD")
 #define ALIAS_SIZE	(sizeof(ALIAS) - 1)
 
-void
-db_aliashash(dr_t *a)
+dr_t
+db_aliashash(dr_t a)
 {
-	dr_t aa = *a;
+	dr_t aa = a;
 	dr_t h, ah = NULL;
 	int i, an = -1;
 	struct release rel;
@@ -208,16 +208,18 @@ db_aliashash(dr_t *a)
 			an = 0;
 	}
 	if (an == -1)
-		return ;
+		return dr_ref(a);
 	h = db_readhead(&rel, NULL);
 	if (h->size == 0) {
 		fprintf(stderr, "FATAL: empty db\n");
 		exit(EINVAL);
 	}
 	i = 0;
-	do {
-		if (i == an)
+	for (;;) {
+		if (i == an) {
 			ah = dr_ref(h);
+			break;
+		}
 		dr_unref(h);
 		h = dr_ref(rel.prev);
 		if (h->size == 0)
@@ -225,20 +227,16 @@ db_aliashash(dr_t *a)
 		release_destroy(&rel);
 		db_readrel(&rel, h);
 		i++;
-	} while (i <= an);
+	}
 	dr_unref(h);
 	release_destroy(&rel);
-	if (an != -1) {
-		if (ah == NULL) {
-			fprintf(stderr, "FATAL: invalid alias %s \n", str(aa));
-			exit(EINVAL);
-		} else {
-			printf("alias: %s -> %s\n", str(aa), str(ah));
-			dr_unref(aa);
-			*a = ah;
-		}
+	if (ah == NULL) {
+		fprintf(stderr, "FATAL: invalid alias %s \n", str(aa));
+		exit(EINVAL);
+	} else {
+		printf("alias: %s -> %s\n", str(aa), str(ah));
+		return ah;
 	}
-	return ;
 }
 
 void

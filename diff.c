@@ -178,8 +178,8 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	struct release ra, rb;
 	struct tree tb, ta_name, ta_hash;
 	int add, dff, mov, del;
-	db_aliashash(&a);
-	db_aliashash(&b);
+	a = db_aliashash(a);
+	b = db_aliashash(b);
 	db_readrel(&ra, a);
 	db_readrel(&rb, b);
 	db_readtree(&ta_name, ra.tree);
@@ -258,11 +258,11 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	patchhash = db_hash(data);
 	snprintf(buf, sizeof(buf), "%s/patch.dat", str(afinger));
 	dir_writefile(buf, data, root);
-	dr_unref(data);
 	snprintf(buf, sizeof(buf),
 		"{\"add\":%d, \"dff\":%d, \"mov\":%d, "
-		"\"del\":%d, \"hash\":\"%s\" \"size\":%d }",
+		"\"del\":%d, \"hash\":\"%s\", \"size\":%d }",
 		add, dff, mov, del, patchhash->buf, data->size);
+	dr_unref(data);
 	data = dr_newstr(buf);
 	snprintf(buf, sizeof(buf), "%s/patch.json", str(afinger));
 	dir_writefile(buf, data, root);
@@ -276,6 +276,8 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	tree_destroy(&tb);
 	data = dr_newstr(buf);
 	verify(a, b, data);
+	dr_unref(a);
+	dr_unref(b);
 	dr_unref(data);
 	return ;
 }
