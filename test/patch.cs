@@ -130,24 +130,32 @@ namespace vdb {
 			public step step = step.INVA;
 		};
 		private string patchfile = null;
-		private string patchdir = null;
+		private string patchdir_r = null;
+		private string patchdir_rw = null;
 		private string patchtmp = null;
 		private string headname = "_HEAD";
 		private SHA1 hashmethod = SHA1.Create();
 		private List<DEL> dellist = null;
 		private List<string> modified = null;
-		private Dictionary<string, byte[]> filecache = new Dictionary<string,byte[]>();
 		//used by verify
 		private Dictionary<string, string> fingerprint = null;
 		private infor info = null;
-		private string fingerpath = null;
 		public int total = 100;
 		public int current = 0;
 		public const string FINGERNAME = "_fingerprint";
-		public patcher(string patchdir) {
-			this.patchdir = patchdir;
-			this.patchtmp = Path.Combine(patchdir, "_temp");
-			this.fingerpath = Path.Combine(patchdir, FINGERNAME);
+		public patcher(string patchdir_r, string patchdir_rw) {
+			this.patchdir_r = patchdir_r;
+			this.patchdir_rw = patchdir_rw;
+			this.patchtmp = Path.Combine(patchdir_rw, "_temp");
+		}
+		public void finger_save(byte[] dat)
+		{
+		    var fingerpath = Path.Combine(patchdir_rw, FINGERNAME);
+		    writefile(fingerpath, dat);
+		}
+		public List<string> verify_all()
+		{
+		    return step_verify();
 		}
 		private CTRL read(FileStream fs) {
 			action act = CTRL.readact(fs);
@@ -173,22 +181,26 @@ namespace vdb {
 			return o;
 		}
 		private byte[] readfile(string name) {
-			byte[] o;
-			bool find = filecache.TryGetValue(name, out o);
-			if (find)
-				return o;
 			try {
-				o = File.ReadAllBytes(name);
+				return File.ReadAllBytes(name);
 			} catch (SystemException) {
 				return null;
 			}
-			filecache[name] = o;
-			return o;
 		}
 		private void writefile(string path, byte[] data) {
 			FileInfo file = new FileInfo(path);
 			file.Directory.Create();
 			File.WriteAllBytes(path, data);
+		}
+
+		private byte[] readfile_shortname(string name) {
+			string path = Path.Combine(patchdir_rw, name);
+			var dat = readfile(path);
+			if (dat == null) {
+				path = Path.Combine(patchdir_r, name);
+				dat = readfile(path);
+			}
+			return dat;
 		}
 		private int read8(byte[] data, ref int offset) {
 			return data[offset++];
@@ -225,14 +237,14 @@ namespace vdb {
 		private void writehead(step s) {
 			info.step = s;
 			string x = JsonUtility.ToJson(info);
-			File.WriteAllText(Path.Combine(patchdir, headname), x);
+			File.WriteAllText(Path.Combine(patchdir_rw, headname), x);
 		}
 		private step readhead() {
 			try {
-				var path = Path.Combine(patchdir, headname);
+				var path = Path.Combine(patchdir_rw, headname);
 				if (!File.Exists(path))
 					return step.FINISH;
-				var head = File.ReadAllText(Path.Combine(patchdir, headname));
+				var head = File.ReadAllText(Path.Combine(patchdir_rw, headname));
 				info = JsonUtility.FromJson<infor>(head);
 				return info.step;
 			} catch (SystemException) {
@@ -249,7 +261,7 @@ namespace vdb {
 			return sb.ToString();
 		}
 		public string finger_hash() {
-			var dat = readfile(fingerpath);
+			var dat = readfile_shortname(FINGERNAME);
 			if (dat == null)
 				return null;
 			var hash = hashmethod.ComputeHash(dat);
@@ -272,15 +284,15 @@ namespace vdb {
 			return hashstr.CompareTo(dsthash) == 0;
 		}
 		private bool file_hashcmp(string name, string dsthash) {
-			var path = Path.Combine(patchdir, name);
-			var data = readfile(path);
+			var data = readfile_shortname(name);
 			if (data == null)
 				return false;
 			return data_hashcmp(data, dsthash);
-		}
-		private void finger_parse(string path = null) {
-			if (path == null)
-				path = fingerpath;
+		}	
+		private void finger_parse() {
+			var path = patchdir_rw + "/" + FINGERNAME;
+			if (!File.Exists(path))
+				path = patchdir_r + "/" + FINGERNAME;
 			fingerprint = new Dictionary<string,string>();
 			var lines = File.ReadAllLines(path);
 			var iter = lines.GetEnumerator();
@@ -292,37 +304,43 @@ namespace vdb {
 			return ;
 		}
 		private void step_patch() {
+			modified = new List<string>();
 			FileStream fs = new FileStream(patchfile, FileMode.Open);
 			UnityEngine.Debug.Log("step_patch");
 			current = 0;
 			total = gettotal();
-			filecache.Clear();
 			dellist = new List<DEL>();
 			while (fs.Position < fs.Length) {
 				CTRL o = read(fs);
 				byte[] frombuf = null;
-				string frompath = null, topath = null;
+				string topath = null;
 				switch (o.act) {
 				case action.CTRL_DFF:
-					frompath = Path.Combine(patchdir, ((DFF)o).name);
+					modified.Add(((DFF)o).name);
 					topath = Path.Combine(patchtmp, ((DFF)o).name);
-					frombuf = readfile(frompath);
-					patch_content(frombuf, ((DFF)o).patch, topath);
+					frombuf = readfile_shortname(((DFF)o).name);
+					if (frombuf != null)
+						patch_content(frombuf, ((DFF)o).patch, topath);
 					break;
 				case action.CTRL_DFX:
-					frompath = Path.Combine(patchdir, ((DFX)o).namea);
+					modified.Add(((DFX)o).name);
 					topath = Path.Combine(patchtmp, ((DFX)o).name);
-					frombuf = readfile(frompath);
-					patch_content(frombuf, ((DFX)o).patch, topath);
+					frombuf = readfile_shortname(((DFX)o).namea);
+					if (frombuf != null)
+						patch_content(frombuf, ((DFX)o).patch, topath);
 					break;
 				case action.CTRL_NEW:
+					modified.Add(((NEW)o).name);
 					topath = Path.Combine(patchtmp, ((NEW)o).name);
 					writefile(topath, ((NEW)o).data);
 					break;
 				case action.CTRL_MOV:
-					frompath = Path.Combine(patchdir, ((MOV)o).namea);
-					topath = Path.Combine(patchtmp, ((MOV)o).name);
-					File.Copy(frompath, topath);
+					modified.Add(((MOV)o).name);
+					frombuf = readfile_shortname(((MOV)o).namea);
+					if (frombuf != null) {
+						topath = Path.Combine(patchtmp, ((MOV)o).name);
+						writefile(topath, frombuf);
+					}
 					break;
 				case action.CTRL_DEL:
 					dellist.Add((DEL)o);
@@ -333,29 +351,35 @@ namespace vdb {
 			}
 			fs.Close();
 			fs.Dispose();
-			filecache.Clear();
 			writehead(step.PATCH);
 		}
 
 		private void step_delete() {
+			if (dellist == null) {
+				FileStream fs = new FileStream(patchfile, FileMode.Open);
+				dellist = new List<DEL>();
+				while (fs.Position < fs.Length) {
+					CTRL o = read(fs);
+					if (o.act == action.CTRL_DEL) {
+						dellist.Add((DEL)o);
+						break;
+					}
+				}
+				fs.Close();
+				fs.Dispose();
+			}
 			current = info.add + info.dff + info.mov;
 			total = gettotal();
 			UnityEngine.Debug.Log("step_delet");
 			var iter = dellist.GetEnumerator();
 			while (iter.MoveNext()) {
 				var o = iter.Current;
-				switch (o.act) {
-				case action.CTRL_DEL:
-					File.Delete(Path.Combine(patchdir, ((DEL)o).name));
-					break;
-				}
+				try {File.Delete(Path.Combine(patchdir_rw, o.name)); }catch(SystemException) { }
 				++current;
 			}
 			writehead(step.DELETE);
 		}
-
 		private void step_apply() {
-			modified = new List<string>();
 			UnityEngine.Debug.Log("step_apply");
 			current = info.add + info.dff + info.mov + info.del;
 			total = gettotal();
@@ -365,13 +389,12 @@ namespace vdb {
 			while (fiter.MoveNext()) {
 				string from = fiter.Current;
 				string subname = from.Substring(prefix);
-				var to = Path.Combine(patchdir, subname);
+				var to = Path.Combine(patchdir_rw, subname);
 				var fi = new FileInfo(to);
 				fi.Directory.Create();
 				if (File.Exists(to))
 					File.Delete(to);
 				File.Move(from, to);
-				modified.Add(subname);
 				++current;
 			}
 			writehead(step.APPLY);
@@ -381,31 +404,27 @@ namespace vdb {
 			List<string> fails = new List<string>();
 			finger_parse();
 			current = 0;
-			filecache.Clear();
 			if (modified != null) {	//full flow, just verify changed
 				total = modified.Count;
 				var iter = modified.GetEnumerator();
 				while (iter.MoveNext()) {
 					string hash;
 					var subname = iter.Current;
-					var path = Path.Combine(this.patchdir, subname);
+					var path = Path.Combine(this.patchdir_rw, subname);
 					fingerprint.TryGetValue(subname, out hash);
+					System.Diagnostics.Debug.Assert(hash != null, subname);
 					if (hash != null && file_hashcmp(path, hash) == false)
 						fails.Add(subname);
 					current++;
 				}
 			} else {
 				total = fingerprint.Count;
-				if (file_hashcmp(fingerpath, info.fingerhash) == false) {
-					fails.Add(FINGERNAME);
-					return fails;
-				}
 				var iter = fingerprint.GetEnumerator();
 				while (iter.MoveNext()) {
 					var subname = iter.Current.Key;
 					var hash = iter.Current.Value;
-					var path = Path.Combine(this.patchdir, subname);
-					if (file_hashcmp(path, hash) == false)
+					var dat = readfile_shortname(subname);
+					if (data_hashcmp(dat, hash) == false)
 						fails.Add(subname);
 					current++;
 				}
@@ -435,7 +454,6 @@ namespace vdb {
 			isbroken = false;
 			if (s == step.FINISH)
 				return null;
-			fingerpath = Path.Combine(patchdir, FINGERNAME);
 			switch (s) {
 			case step.BEGIN:
 				goto BEGIN;
@@ -458,7 +476,7 @@ namespace vdb {
 				step_apply();
 			APPLY:
 				fails = step_verify();
-				if (fails != null)
+				if (fails != null) 
 					return fails;
 			VERIFY:
 				step_finish(patchfile);
