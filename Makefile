@@ -6,6 +6,11 @@ SRC:=main.c release.c history.c diff.c patch.c list.c checkout.c\
 
 all:vdb
 
+win: LIB := -lws2_32 -lwsock32
+
+win:all
+
+
 vdb:$(SRC)
-	gcc -g3 -Wall -Werror -o $@ $^
+	gcc -g3 -Wall -Werror -o $@ $^ $(LIB)
 

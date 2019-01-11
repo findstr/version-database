@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include "conf.h"
 #include "dr.h"
 #include "dir.h"
 
@@ -116,7 +117,7 @@ dir_ensure(const char *path)
 		int ret;
 		*e = 0;
 		errno = 0;
-		ret = mkdir(p, 0755);
+		ret = MKDIR(p);
 		if (ret == -1 && errno != EEXIST) {
 			fprintf(stderr, "mkdir '%s' %s\n", p, strerror(errno));
 			exit(errno);

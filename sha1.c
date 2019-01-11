@@ -7,7 +7,11 @@
  */
 #include <stdint.h>
 #include <string.h>
+#ifdef WIN32
+#include <winsock.h>
+#else
 #include <arpa/inet.h>
+#endif
 #include "sha1.h"
 
 #if defined(__GNUC__) && (defined(__i386__) || defined(__x86_64__))

@@ -132,7 +132,7 @@ db_write(dr_t name, dr_t d)
 		char *p;
 		p = (char *)hash->buf;
 		n = sprintf(path, ROOT"/%c%c", p[0], p[1]);
-		ret = mkdir(path, 0755);
+		ret = MKDIR(path);
 		if (ret == -1 && errno != EEXIST) {
 			fprintf(stderr, "FATAL:db_write %s hash %s errno:%s\n",
 				path, p, strerror(errno));
@@ -243,9 +243,9 @@ void
 db_init()
 {
 	int err;
-	err = mkdir(DB, 0755);
+	err = MKDIR(DB);
 	if (err == 0)
-		err = mkdir(ROOT, 0755);
+		err = MKDIR(ROOT);
 	if (err == 0) {
 		return ;
 	} else if (errno == EEXIST) {
