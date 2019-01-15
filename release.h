@@ -6,6 +6,7 @@ struct release_args {
 	dr_t version;
 	dr_t describe;
 	dr_t fromdir;
+	dr_t checkout;
 };
 
 void release(struct release_args *args);

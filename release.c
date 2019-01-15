@@ -7,6 +7,7 @@
 #include "db.h"
 #include "time.h"
 #include "object.h"
+#include "checkout.h"
 #include "release.h"
 
 static dr_t
@@ -69,7 +70,10 @@ release(struct release_args *args)
 	if (keep == n) {
 		int x = prevtree.refn;
 		for (i = 0; i < x; i++) {
-			if (prevtree.refs[i].name != NULL)
+			dr_t name = prevtree.refs[i].name;
+			if (name == NULL)
+				continue;
+			if (strcmp(str(name), FINGERPRINT_NAME) != 0)
 				break;
 		}
 		if (i >= x)
@@ -80,13 +84,14 @@ release(struct release_args *args)
 	if (keep != n) {
 		struct release rel;
 		dr_t treeobj;//, finger;
-		dr_t relhash, treehash;
+		dr_t relhash;
+		dr_t treehash;
 		rel.time = time(NULL);
 		rel.prev = dr_ref(head);
 		rel.ver = dr_ref(args->version);
 		rel.note = dr_ref(args->describe);
-#if ENABLE_FINGERPRINT
 		tree_sort(&tree, ref_hashcmp);
+#if ENABLE_FINGERPRINT
 		rel.finger = fingerprint(&tree);
 #endif
 		treeobj = tree_marshal(&tree);
@@ -94,9 +99,11 @@ release(struct release_args *args)
 		rel.tree = dr_ref(treehash);
 		relhash = db_writehead(&rel);
 		release_destroy(&rel);
+		if (args->checkout != NULL)
+			checkout(relhash, args->checkout);
 		dr_unref(treeobj);
-		dr_unref(treehash);
 		dr_unref(relhash);
+		dr_unref(treehash);
 	}
 	free(list);
 	dr_unref(head);

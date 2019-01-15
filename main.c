@@ -60,8 +60,11 @@ release_h(int argc, char *argv[])
 	int c;
 	struct release_args args;
 	memset(&args, 0, sizeof(args));
-	while ((c = getopt(argc, argv, "v:m:d:?")) != -1) {
+	while ((c = getopt(argc, argv, "c:v:m:d:?")) != -1) {
 		switch (c) {
+		case 'c':
+			args.checkout = dr_newstr(optarg);
+			break;
 		case 'v':
 			args.version = dr_newstr(optarg);
 			break;
@@ -87,6 +90,7 @@ release_h(int argc, char *argv[])
 	dr_unref(args.version);
 	dr_unref(args.describe);
 	dr_unref(args.fromdir);
+	dr_unref(args.checkout);
 }
 
 static void
