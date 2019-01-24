@@ -151,7 +151,7 @@ dir_writefile(const char *path, dr_t d, dr_t root)
 	char buf[PATH_MAX];
 	path = changedir(buf, path, root);
 	dir_ensure(path);
-	fd = open(path, O_CREAT | O_RDWR | O_TRUNC, 0644);
+	fd = open(path, O_CREAT | O_RDWR | O_TRUNC | O_BINARY, 0644);
 	if (fd < 0) {
 		fprintf(stderr, "FATAL: write %s errno:%s\n",
 			path, strerror(errno));

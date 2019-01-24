@@ -12,5 +12,5 @@ win:all
 
 
 vdb:$(SRC)
-	gcc -g3 -Wall -Werror -o $@ $^ $(LIB)
+	gcc -g3 -fsigned-char -Wall -Werror -o $@ $^ $(LIB)
 

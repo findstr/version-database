@@ -9,6 +9,7 @@
 
 #else
 
+#define O_BINARY		0
 #define MKDIR(p)		mkdir(p, 0755)
 
 #endif

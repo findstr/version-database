@@ -14,7 +14,7 @@
 #define ARRAYSIZE(arr)	(sizeof(arr)/sizeof(arr[0]))
 
 typedef void (cmd_t)(int argc, char *argv[]);
-
+static char *EXEC = NULL;
 struct subcmd {
 	const char *cmd;
 	cmd_t *handler;
@@ -44,11 +44,11 @@ list_h(int argc, char *argv[])
 	(void)argc;
 	(void)argv;
 	struct list_args args;
-	if (argc < 3) {
-		fprintf(stderr, "usage: %s list hash\n", argv[0]);
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s list hash\n", EXEC);
 		exit(EINVAL);
 	}
-	args.hash = dr_newstr(argv[2]);
+	args.hash = dr_newstr(argv[1]);
 	list(&args);
 	dr_unref(args.hash);
 	return ;
@@ -81,7 +81,7 @@ release_h(int argc, char *argv[])
 	}
 	if (args.version == NULL || args.describe == NULL) {
 		fprintf(stderr, "usage: %s release -v version -m releasenote -d dir\n",
-			argv[0]);
+			EXEC);
 		exit(EINVAL);
 	}
 	if (args.fromdir == NULL)
@@ -97,12 +97,12 @@ static void
 checkout_h(int argc, char *argv[])
 {
 	dr_t hash, outdir;
-	if (argc < 4) {
-		fprintf(stderr, "usage: %s checkout hash outdir\n", argv[0]);
+	if (argc < 3) {
+		fprintf(stderr, "usage: %s checkout hash outdir\n", EXEC);
 		exit(EINVAL);
 	}
-	hash = dr_newstr(argv[2]);
-	outdir = dr_newstr(argv[3]);
+	hash = dr_newstr(argv[1]);
+	outdir = dr_newstr(argv[2]);
 	checkout(hash, outdir);
 	dr_unref(hash);
 	dr_unref(outdir);
@@ -136,9 +136,9 @@ diff_h(int argc, char *argv[])
 	}
 	if (!(args.o && ((args.a && args.b) || args.r == 1))) {
 		fprintf(stderr, "usage: \n"
-				"\t%s diff -a from -b to -o dir\n"
-				"\t%s diff -r -o dir\n",
-			argv[0], argv[0]);
+			"\t%s diff -a from -b to -o dir\n"
+			"\t%s diff -r -o dir\n",
+			EXEC, EXEC);
 		exit(EINVAL);
 	}
 	diff(&args);
@@ -197,6 +197,8 @@ static void
 help(int argc, char *argv[])
 {
 	int i;
+	(void)argc;
+	(void)argv;
 	fprintf(stdout, "sub command list:\n");
 	for (i = 0; i < ARRAYSIZE(cmds); i++) {
 		fprintf(stdout, "%s\n", cmds[i].cmd);
@@ -208,9 +210,10 @@ int main(int argc, char *argv[])
 	int i;
 	if (argc < 2)
 		goto over;
+	EXEC = argv[0];
 	for (i = 0; i < ARRAYSIZE(cmds); i++) {
 		if (strcmp(cmds[i].cmd, argv[1]) == 0) {
-			cmds[i].handler(argc, argv);
+			cmds[i].handler(argc-1, &argv[1]);
 			break;
 		}
 	}
