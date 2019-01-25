@@ -5,9 +5,10 @@
 #include "history.h"
 
 void
-history()
+history(int n)
 {
 	dr_t h;
+	int i = 0;
 	struct release rel;
 	h = db_readhead(&rel, NULL);
 	if (h->size == 0) {
@@ -24,7 +25,7 @@ history()
 			printf("Version:%s\n", rel.ver->buf);
 			printf("Date:%s\n", datetime);
 			printf("\n\t%s\n\n", rel.note->buf);
-			if (rel.prev->size <= 0)
+			if (rel.prev->size <= 0 || (n > 0 && ++i >= n))
 				break;
 			dr_unref(h);
 			h = dr_ref(rel.prev);

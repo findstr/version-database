@@ -33,9 +33,20 @@ init_h(int argc, char *argv[])
 static void
 history_h(int argc, char *argv[])
 {
+	int c, n = 0;
 	(void)argc;
 	(void)argv;
-	history();
+	while ((c = getopt(argc, argv, "n:?")) != -1) {
+		switch (c) {
+		case 'n':
+			n = strtol(optarg, NULL, 0);
+			break;
+		case '?':
+			exit(EINVAL);
+			break;
+		}
+	}
+	history(n);
 }
 
 static void
