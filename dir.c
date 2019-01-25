@@ -117,6 +117,7 @@ dir_ensure(const char *path)
 	while ((e = strchr(s, '/'))) {
 		int ret;
 		*e = 0;
+		errno = 0;
 		ret = MKDIR(p);
 		if (ret == -1 && errno != EEXIST) {
 			fprintf(stderr, "mkdir '%s' %s\n", p, strerror(errno));

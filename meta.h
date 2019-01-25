@@ -5,7 +5,7 @@
 #define CTRL_NEW		(0x10)
 #define	CTRL_DFF		(0x20)
 #define CTRL_DFX		(0x30)
-#define CTRL_MOV		(0x40)
+#define CTRL_CPY		(0x40)
 #define CTRL_DEL		(0x50)
 
 
@@ -37,7 +37,7 @@ struct DEL {
 	dr_t name;
 };
 
-struct MOV {
+struct CPY {
 	dr_t name;
 	dr_t namea;
 };
@@ -49,7 +49,7 @@ struct CTRL {
 		struct DFF dff;
 		struct DFX dfx;
 		struct DEL del;
-		struct MOV mov;
+		struct CPY cpy;
 	} u;
 };
 
@@ -75,7 +75,7 @@ void ctrl_new(drb_t *drb, struct NEW *c);
 void ctrl_dff(drb_t *drb, struct DFF *c);
 void ctrl_dfx(drb_t *drb, struct DFX *c);
 void ctrl_del(drb_t *drb, struct DEL *c);
-void ctrl_mov(drb_t *drb, struct MOV *c);
+void ctrl_cpy(drb_t *drb, struct CPY *c);
 void ctrl_destroy(struct CTRL *ctrl);
 
 void patch_total(drb_t *drb, int size);

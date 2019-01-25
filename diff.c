@@ -177,7 +177,7 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	struct ref *r;
 	struct release ra, rb;
 	struct tree tb, ta_name, ta_hash;
-	int add, dff, mov, del;
+	int add, dff, cpy, del;
 	a = db_aliashash(a);
 	b = db_aliashash(b);
 	db_readrel(&ra, a);
@@ -195,18 +195,18 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	drb_init(&file, 1024);
 	printf("diff start\n");
 	printf("detect change\n");
-	add = 0; dff = 0; mov = 0; del = 0;
+	add = 0; dff = 0; cpy = 0; del = 0;
 	for (i = 0; i < tb.refn; i++) {
 		struct ref *a, *b;
 		dr_t patch = NULL;
 		b = &tb.refs[i];
 		if ((a = tree_search(&ta_hash, b, ref_hashcmp))) {
 			if (dr_cmp(b->name, a->name) != 0) {
-				struct MOV M;
-				M.namea = a->name;
-				M.name = b->name;
-				ctrl_mov(&file, &M);
-				++mov;
+				struct CPY C;
+				C.namea = a->name;
+				C.name = b->name;
+				ctrl_cpy(&file, &C);
+				++cpy;
 			} else {
 				//printf("%s is same, skip it.\n", b->name->buf);
 			}
@@ -241,7 +241,7 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 			dr_unref(patch);
 		}
 	}
-	printf("detect remove\n");
+	printf("detect recpye\n");
 #if ENABLE_DEL
 	tree_sort(&tb, ref_namecmp);
 	for (i = 0; i < ta_name.refn; i++) {
@@ -259,9 +259,9 @@ diff_tree(dr_t a, dr_t b, dr_t root)
 	snprintf(buf, sizeof(buf), "%s/patch.dat", str(afinger));
 	dir_writefile(buf, data, root);
 	snprintf(buf, sizeof(buf),
-		"{\"add\":%d, \"dff\":%d, \"mov\":%d, "
+		"{\"add\":%d, \"dff\":%d, \"cpy\":%d, "
 		"\"del\":%d, \"hash\":\"%s\", \"size\":%d }",
-		add, dff, mov, del, patchhash->buf, data->size);
+		add, dff, cpy, del, patchhash->buf, data->size);
 	dr_unref(data);
 	data = dr_newstr(buf);
 	snprintf(buf, sizeof(buf), "%s/patch.json", str(afinger));
@@ -346,7 +346,7 @@ diff(struct diff_args *args)
 	drb_t file;
 	char buff[2048];
 	dr_t data, patchhash;
-	int add, dff, mov, del;
+	int add, dff, cpy, del;
 	struct release ra, rb;
 	struct tree ta, tb;
 	db_aliashash(&args->a);
@@ -363,7 +363,7 @@ diff(struct diff_args *args)
 	drb_init(&file, 1024);
 	printf("diff start\n");
 	printf("detect change\n");
-	add = 0; dff = 0; mov = 0; del = 0;
+	add = 0; dff = 0; cpy = 0; del = 0;
 	for (i = 0; i < tb.refn; i++) {
 		struct ref *b;
 		struct ref *a;
@@ -385,8 +385,8 @@ diff(struct diff_args *args)
 				struct MOV M;
 				M.namea = a->name;
 				M.name = b->name;
-				ctrl_mov(&file, &M);
-				++mov;
+				ctrl_cpy(&file, &M);
+				++cpy;
 			} else {
 				//printf("%s is same, skip it.\n", b->name->buf);
 			}
@@ -411,7 +411,7 @@ diff(struct diff_args *args)
 		}
 		dr_unref(patch);
 	}
-	printf("\ndetect remove\n");
+	printf("\ndetect recpye\n");
 	tree_sort(&tb, ref_namecmp);
 #if ENABLE_DEL
 	for (i = 0; i < ta.refn; i++) {
@@ -430,8 +430,8 @@ diff(struct diff_args *args)
 	dir_writefile("patch.dat", data, args->p);
 	dr_unref(data);
 	snprintf(buff, sizeof(buff),
-		"{\"add\":%d, \"dff\":%d, \"mov\":%d, \"del\":%d, \"hash\":\"%s\"}",
-		add, dff, mov, del, patchhash->buf);
+		"{\"add\":%d, \"dff\":%d, \"cpy\":%d, \"del\":%d, \"hash\":\"%s\"}",
+		add, dff, cpy, del, patchhash->buf);
 	data = dr_newstr(buff);
 	dir_writefile("patch.json", data, args->p);
 	dr_unref(data);

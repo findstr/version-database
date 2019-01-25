@@ -174,16 +174,16 @@ ctrl_del_free(struct DEL *n)
 }
 
 void
-ctrl_mov(drb_t *drb, struct MOV *c)
+ctrl_cpy(drb_t *drb, struct CPY *c)
 {
-	writeact(drb, CTRL_MOV);
+	writeact(drb, CTRL_CPY);
 	writename(drb, c->name);
 	writename(drb, c->namea);
-	printf(".MOV %s => %s\n", c->namea->buf, c->name->buf);
+	printf(".CPY %s => %s\n", c->namea->buf, c->name->buf);
 }
 
 static const uint8_t *
-ctrl_mov_read(const uint8_t *p, struct MOV *n)
+ctrl_cpy_read(const uint8_t *p, struct CPY *n)
 {
 	n->name = readname(&p);
 	n->namea = readname(&p);
@@ -191,7 +191,7 @@ ctrl_mov_read(const uint8_t *p, struct MOV *n)
 }
 
 static void
-ctrl_mov_free(struct MOV *n)
+ctrl_cpy_free(struct CPY *n)
 {
 	dr_unref(n->name);
 	dr_unref(n->namea);
@@ -209,8 +209,8 @@ ctrl_read(const uint8_t *p, struct CTRL *ctrl)
 		return ctrl_dff_read(p, &ctrl->u.dff);
 	case CTRL_DFX:
 		return ctrl_dfx_read(p, &ctrl->u.dfx);
-	case CTRL_MOV:
-		return ctrl_mov_read(p, &ctrl->u.mov);
+	case CTRL_CPY:
+		return ctrl_cpy_read(p, &ctrl->u.cpy);
 	case CTRL_DEL:
 		return ctrl_del_read(p, &ctrl->u.del);
 	default:
@@ -232,8 +232,8 @@ ctrl_destroy(struct CTRL *ctrl)
 	case CTRL_DFX:
 		ctrl_dfx_free(&ctrl->u.dfx);
 		break;
-	case CTRL_MOV:
-		ctrl_mov_free(&ctrl->u.mov);
+	case CTRL_CPY:
+		ctrl_cpy_free(&ctrl->u.cpy);
 		break;
 	case CTRL_DEL:
 		ctrl_del_free(&ctrl->u.del);

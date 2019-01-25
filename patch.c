@@ -91,7 +91,7 @@ patch(struct patch_args *args)
 			//printf("ref:%d\n", newfile->ref);
 			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
 			break;
-		case CTRL_MOV:
+		case CTRL_CPY:
 		case CTRL_NEW:
 		case CTRL_DEL:
 			break;
@@ -113,9 +113,10 @@ patch(struct patch_args *args)
 			dir_writefile(str(ctrl.u.new.name),
 				ctrl.u.new.data, outdir);
 			break;
-		case CTRL_MOV:
+		case CTRL_CPY:
+			namea = ctrl.u.cpy.namea;
 			oldfile = dir_readfile(str(namea), outdir);
-			dir_rename(str(namea), str(ctrl.u.mov.name), outdir);
+			dir_writefile(str(ctrl.u.cpy.name), oldfile, outdir);
 			break;
 		case CTRL_DEL:
 			dir_remove(str(ctrl.u.del.name), outdir);
