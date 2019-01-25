@@ -42,7 +42,7 @@ void
 release(struct release_args *args)
 {
 	dr_t *list, head;
-	int i, n, keep;
+	int i, n, keep, del;
 	struct release prevrel;
 	struct tree prevtree, tree;
 	n = dir_scan(str(args->fromdir), &list, 1);
@@ -61,12 +61,13 @@ release(struct release_args *args)
 		r->hash = db_write(name, d);
 		dr_unref(d);
 		f = tree_search(&prevtree, r, ref_hashcmp);
-		if (f && (strcmp(str(f->name), str(name)) == 0)) {
+		if (f && f->name && (strcmp(str(f->name), str(name)) == 0)) {
 			dr_unref(f->name);
 			f->name = NULL;
 			keep += 1;
 		}
 	}
+	del = 0;
 	if (keep == n) {
 		int x = prevtree.refn;
 		for (i = 0; i < x; i++) {
@@ -74,14 +75,12 @@ release(struct release_args *args)
 			if (name == NULL)
 				continue;
 			if (strcmp(str(name), FINGERPRINT_NAME) != 0)
-				break;
+				++del;
 		}
-		if (i >= x)
-			printf("Clean workspace\n");
-		else
-			keep = 0;
+		if (del == 0)
+			printf("clean workspace\n");
 	}
-	if (keep != n) {
+	if (keep != n || del != 0) {
 		struct release rel;
 		dr_t treeobj;//, finger;
 		dr_t relhash;
@@ -104,6 +103,7 @@ release(struct release_args *args)
 		dr_unref(treeobj);
 		dr_unref(relhash);
 		dr_unref(treehash);
+		printf("release total:%d changed:%d del:%d\n", n, n-keep, del);
 	}
 	free(list);
 	dr_unref(head);
