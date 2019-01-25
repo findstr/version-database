@@ -141,6 +141,7 @@ dir_readfile(const char *path, dr_t root)
 	fstat(fd, &stat);
 	content = dr_new(stat.st_size, NULL);
 	read(fd, content->buf, stat.st_size);
+	close(fd);
 	return content;
 }
 
