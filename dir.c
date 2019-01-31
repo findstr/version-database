@@ -136,7 +136,7 @@ dir_readfile(const char *path, dr_t root)
 	char buf[PATH_MAX];
 	struct stat stat;
 	path = changedir(buf, path, root);
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY | O_BINARY);
 	if (fd < 0)
 		return NULL;
 	fstat(fd, &stat);
