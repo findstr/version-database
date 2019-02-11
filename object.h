@@ -1,6 +1,6 @@
 #ifndef	_OBJECT_H
 #define _OBJECT_H
-
+#include <sys/types.h>
 #include "dr.h"
 
 #define MC(a,b,c,d)	((d) << 24 | (c) << 16 | (b) << 8 | (a))
