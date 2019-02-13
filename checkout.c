@@ -17,7 +17,7 @@ checkout(dr_t hash, dr_t outdir)
 	db_readrel(&r, hash);
 	dr_unref(hash);
 	db_readtree(&t, r.tree);
-	printf("checkout tree:%s\n", r.tree->buf);
+	printf("checkout tree:%s->%s\n", r.tree->buf, str(outdir));
 	release_destroy(&r);
 	dir_ensure(str(outdir));
 	if (errno == EEXIST)

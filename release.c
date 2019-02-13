@@ -47,7 +47,7 @@ release(struct release_args *args)
 	struct tree prevtree, tree;
 	n = dir_scan(str(args->fromdir), &list, 1);
 	head = db_readhead(&prevrel, &prevtree);
-	tree_sort(&prevtree, ref_hashcmp);
+	tree_sort(&prevtree, ref_namecmp);
 	tree.refn = n;
 	tree.refs = malloc(sizeof(struct ref) * (n+1));
 	memset(tree.refs, 0, sizeof(struct ref) * (n+1));
@@ -60,10 +60,10 @@ release(struct release_args *args)
 		d = dir_readfile(str(name), args->fromdir);
 		r->hash = db_write(name, d);
 		dr_unref(d);
-		f = tree_search(&prevtree, r, ref_hashcmp);
-		if (f && f->name && (strcmp(str(f->name), str(name)) == 0)) {
-			dr_unref(f->name);
-			f->name = NULL;
+		f = tree_search(&prevtree, r, ref_namecmp);
+		if (f && dr_cmp(f->hash, r->hash) == 0) {
+			dr_unref(f->hash);
+			f->hash= NULL;
 			keep += 1;
 		}
 	}
@@ -71,10 +71,11 @@ release(struct release_args *args)
 	if (keep == n) {
 		int x = prevtree.refn;
 		for (i = 0; i < x; i++) {
-			dr_t name = prevtree.refs[i].name;
-			if (name == NULL)
+			struct ref *r = &prevtree.refs[i];
+			dr_t hash = r->hash;
+			if (hash== NULL)
 				continue;
-			if (strcmp(str(name), FINGERPRINT_NAME) != 0)
+			if (strcmp(str(r->name), FINGERPRINT_NAME) != 0)
 				++del;
 		}
 		if (del == 0)

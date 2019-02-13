@@ -115,7 +115,7 @@ dir_ensure(const char *path)
 	path = buf;
 	p = s = (char *)path;
 	errno = 0;
-	while ((e = strchr(s, '/'))) {
+	while ((e = strchr(s+1, '/'))) {
 		int ret;
 		*e = 0;
 		errno = 0;
