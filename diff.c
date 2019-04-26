@@ -294,7 +294,8 @@ diff(struct diff_args *args)
 	if (head->size == 0) {
 		printf("Empty db\n");
 	} else {
-		for (;;) {
+		int i;
+		for (i = 0; i < args->r || args->r < 0; i++) {
 			dr_t h;
 			if (rel.prev->size <= 0)
 				break;
