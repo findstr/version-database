@@ -91,8 +91,15 @@ patch(struct patch_args *args)
 			//printf("ref:%d\n", newfile->ref);
 			dir_writefile(str(ctrl.u.dff.name), newfile, outtemp);
 			break;
-		case CTRL_CPY:
 		case CTRL_NEW:
+			dir_writefile(str(ctrl.u.new.name),
+				ctrl.u.new.data, outtemp);
+			break;
+		case CTRL_CPY:
+			namea = ctrl.u.cpy.namea;
+			oldfile = dir_readfile(str(namea), outdir);
+			dir_writefile(str(ctrl.u.cpy.name), oldfile, outtemp);
+			break;
 		case CTRL_DEL:
 			break;
 		}
@@ -105,19 +112,9 @@ patch(struct patch_args *args)
 	e = p + patch->size;
 	while (p < e) {
 		struct CTRL ctrl;
-		dr_t namea = NULL;
 		dr_t newfile = NULL, oldfile = NULL;
 		p = ctrl_read(p, &ctrl);
 		switch (ctrl.act) {
-		case CTRL_NEW:
-			dir_writefile(str(ctrl.u.new.name),
-				ctrl.u.new.data, outdir);
-			break;
-		case CTRL_CPY:
-			namea = ctrl.u.cpy.namea;
-			oldfile = dir_readfile(str(namea), outdir);
-			dir_writefile(str(ctrl.u.cpy.name), oldfile, outdir);
-			break;
 		case CTRL_DEL:
 			dir_remove(str(ctrl.u.del.name), outdir);
 			break;

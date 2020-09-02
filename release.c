@@ -90,7 +90,7 @@ release(struct release_args *args)
 		rel.prev = dr_ref(head);
 		rel.ver = dr_ref(args->version);
 		rel.note = dr_ref(args->describe);
-		tree_sort(&tree, ref_hashcmp);
+		tree_sort(&tree, ref_namecmp);
 #if ENABLE_FINGERPRINT
 		rel.finger = fingerprint(&tree);
 #endif
